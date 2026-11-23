@@ -78,7 +78,7 @@ The SDK is already in the app through the `@revenuecat/purchases-capacitor` and 
 2. Products: `monthly`, `yearly` and `lifetime`. Attach all three to `good_arrow_pro` and put them in the default offering as the Monthly, Annual and Lifetime packages.
 3. Paywall: the app draws its own, listing the three packages with live prices. To use a paywall designed in RevenueCat instead, set `nativePaywall: true` in `www/config.js` and attach one to the default offering.
 4. Customer Center: switch it on in RevenueCat. "Manage purchase" in Settings opens it.
-5. API key: `www/config.js` currently holds a Test Store key (`test_...`), which lets you make pretend purchases with no App Store setup. Before submitting, create the products in App Store Connect, connect the app in RevenueCat, and replace the key with the App Store one (`appl_...`). Apple rejects a build that ships a test key.
+5. API key: `www/config.js` holds the App Store public key (`appl_...`). The three App Store products are attached to `good_arrow_pro` and sit in the `default` offering next to the Test Store ones. To test with pretend purchases, swap in the project's Test Store key (`test_...`) locally, and never ship a build with it.
 
 **The app**
 1. The bundle ID `com.ludis.goodarrow` is registered in the Apple Developer portal and set in `capacitor.config.json` and the Xcode project.

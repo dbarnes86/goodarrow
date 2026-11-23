@@ -4,9 +4,9 @@ window.APP_CONFIG = {
   version: '1.0.0',
 
   // RevenueCat. SDK keys are public by design and safe to ship in the app.
-  // TODO before submitting: this is a RevenueCat Test Store key, for development only. Replace it with the
-  // App Store key (starts "appl_") from RevenueCat > Project settings > API keys. Apple rejects apps that ship a test key.
-  revenueCatKey: 'test_PoVVHKuPDHbqBYkTFWdEHbIdhxd',
+  // RevenueCat's public App Store SDK key. For pretend purchases with no App Store set-up, swap in the
+  // project's Test Store key (starts "test_") while developing, but never ship a build with it.
+  revenueCatKey: 'appl_OgpUkUiOlvUMYMYDTLXixHuNtyd',
   entitlement: 'good_arrow_pro',         // RevenueCat entitlement identifier that unlocks the Pro games
   nativePaywall: false,                  // true shows the paywall designed in the RevenueCat dashboard instead of the app's own
 
