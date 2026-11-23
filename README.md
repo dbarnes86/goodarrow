@@ -59,6 +59,16 @@ npm run test:pro  # the purchase flow against a stand-in for RevenueCat (needs P
 
 `test:ui` covers first launch, the lobby and paywall, a 301 leg with a bust and a checkout, Count-Up, Golf with an edit, three-player Killer, Cricket, Around the Clock, and a reload mid-game.
 
+## Xcode Cloud
+
+`ios/App/ci_scripts/ci_post_clone.sh` runs on Apple's servers right after each clone. It installs Node if needed, then runs `npm ci` and `npm run sync`, so the build has the web app and the Capacitor and RevenueCat packages. Nothing else in the repo needs changing.
+
+To build and ship from Xcode Cloud, edit the workflow (Xcode, Integrate, Manage Workflows, or App Store Connect, Xcode Cloud):
+
+1. Start condition: changes to the `main` branch.
+2. Action: Archive, platform iOS, scheme `App`.
+3. Post-action: TestFlight Internal Testing, so each build appears in TestFlight. Xcode Cloud sets the build number itself.
+
 ## Shipping checklist
 
 These need an Apple Developer account and a Mac with Xcode. None of them have been done yet.
