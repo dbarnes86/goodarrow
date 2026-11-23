@@ -107,3 +107,7 @@ Privacy policy URL: `https://goodarrow.app/privacy`
 Six are ready in `resources/store/screenshots/`, in three sizes. Use the folder that matches the size App Store Connect asks for: `1206x2622` for "iPhone with Dynamic Island (medium display)", `1320x2868` for the large display, and `1179x2556` if the medium slot rejects 1206 x 2622. Upload them in order, 1 to 6. Apple scales them down for smaller iPhones.
 
 They are rendered from the app itself by `npm run store-shots`, so re-run that after any design change.
+
+## Product page header (optional)
+
+`resources/store/header/` has the header in both sizes App Store Connect supports: 5244 x 2950 and 3840 x 1646. Upload it under the version page, Product Page Information, Header and Search Results. It has no text on purpose: Apple lays the app's name and the Get button over it and crops it by device, so the board sits right of centre and the lower left stays dark. Re-render with `npm run header`.

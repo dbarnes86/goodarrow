@@ -12,7 +12,8 @@
     "vendor": "cp node_modules/@capacitor/core/dist/capacitor.js www/vendor/capacitor.js",
     "test:pro": "node tests/pro.test.js",
     "shots": "node scripts/make-review-shot.js",
-    "store-shots": "node scripts/make-store-shots.js"
+    "store-shots": "node scripts/make-store-shots.js",
+    "header": "node scripts/make-header.js"
   },
   "license": "UNLICENSED",
   "dependencies": {
