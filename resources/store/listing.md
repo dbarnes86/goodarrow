@@ -104,11 +104,6 @@ Privacy policy URL: `https://goodarrow.app/privacy`
 
 ## Screenshots
 
-Apple needs at least one set at the 6.9-inch size (1320 x 2868), or 6.5-inch (1284 x 2778). Three to six screens is plenty. Suggested order:
+Six are ready in `resources/store/screenshots/`, at 1320 x 2868 for the 6.9-inch iPhone slot. Upload them in order, 1 to 6. Apple scales them down for smaller iPhones, so this one set covers every iPhone size.
 
-1. The lobby with all twelve games
-2. A 301 leg with a checkout suggestion showing
-3. The golf scorecard mid-round
-4. Killer or Cricket with three or more players
-5. The win screen with confetti
-6. The paywall (optional)
+They are rendered from the app itself by `npm run store-shots`, so re-run that after any design change.

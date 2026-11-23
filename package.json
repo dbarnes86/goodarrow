@@ -11,7 +11,8 @@
     "assets": "node scripts/make-assets.js",
     "vendor": "cp node_modules/@capacitor/core/dist/capacitor.js www/vendor/capacitor.js",
     "test:pro": "node tests/pro.test.js",
-    "shots": "node scripts/make-review-shot.js"
+    "shots": "node scripts/make-review-shot.js",
+    "store-shots": "node scripts/make-store-shots.js"
   },
   "license": "UNLICENSED",
   "dependencies": {
