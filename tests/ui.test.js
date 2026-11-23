@@ -65,6 +65,11 @@ function serve() {
       assert.match(await text('#plans'), /Monthly[\s\S]*Yearly[\s\S]*Save \d+%[\s\S]*Lifetime/i);
       assert.equal(await page.locator('#plans .plan[aria-checked="true"]').count(), 1);
       assert.ok(await page.locator('#payBuy').isDisabled(), 'no store in a browser');
+      await page.waitForTimeout(450);   // let the sheet finish sliding up before measuring
+      const seen = await page.evaluate(() => { const r = (id) => document.querySelector(id).getBoundingClientRect(); const top = document.querySelector('#paySheet .panel').getBoundingClientRect().top;
+        return { cta: r('#payBuy').bottom <= innerHeight, plans: r('#plans').bottom <= r('.payfoot').top + 1 && r('#plans').top >= top, links: r('#payRestore').bottom <= innerHeight }; });
+      assert.deepEqual(seen, { cta: true, plans: true, links: true }, 'plans, Continue and Restore are all on screen without scrolling');
+      assert.match(await text('#payLinks'), /Terms of use/);
       await shot('2-paywall');
       await page.click('#paySheet [data-close]');
       assert.ok(await page.locator('#game').isHidden());

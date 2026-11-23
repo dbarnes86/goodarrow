@@ -131,30 +131,34 @@
   </div>
 </div>
 
-<!-- Paywall -->
+<!-- Paywall: the plans and the button stay on screen; only the middle scrolls on a short phone -->
 <div class="sheet" id="paySheet" hidden>
   <div class="panel pay" role="dialog" aria-modal="true" aria-labelledby="payTitle">
-    <div class="payhero">
-      <div class="payart" id="payArt" aria-hidden="true"></div>
-      <button type="button" class="icon x" data-close aria-label="Close">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
-      </button>
-      <span class="pill gold">Good Arrows Pro</span>
-      <h2 id="payTitle">Every game. Every night.</h2>
-      <p id="paySub">Unlock the full board: ten more games for up to six players.</p>
+    <div class="payscroll">
+      <div class="payhero">
+        <div class="payart" id="payArt" aria-hidden="true"></div>
+        <button type="button" class="icon x" data-close aria-label="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+        <span class="pill gold">Good Arrows Pro</span>
+        <h2 id="payTitle">Every game. Every night.</h2>
+        <p id="paySub">Ten more games for up to six players.</p>
+      </div>
+      <div class="paygames" id="payGames"></div>
+      <ul class="perks">
+        <li>All scored for you</li>
+        <li>Up to six players</li>
+        <li>Celebrations and roasts</li>
+        <li>Every result kept</li>
+      </ul>
+      <div class="plans" id="plans" role="radiogroup" aria-label="Plan"></div>
+      <p class="fine">Monthly and yearly plans renew at the price shown until you cancel. Lifetime is a single payment. Payment is charged to your Apple Account. Cancel at least 24 hours before the renewal date in your App Store account settings. 301, 501 and Count-Up stay free.</p>
     </div>
-    <div class="paygames" id="payGames"></div>
-    <ul class="perks">
-      <li><b>Ten more games</b>Golf, Cricket, Killer, Shanghai and the rest, all scored for you</li>
-      <li><b>Up to six players</b>Honours, lives and turn order handled in every game</li>
-      <li><b>The full show</b>Celebrations for the big moments, roasts for the bad ones</li>
-      <li><b>Every result kept</b>A running record of who actually wins</li>
-    </ul>
-    <div class="plans" id="plans" role="radiogroup" aria-label="Plan"></div>
-    <button type="button" class="cta" id="payBuy">Continue</button>
-    <p class="note" id="payNote" aria-live="polite"></p>
-    <div class="links center"><button type="button" class="link" id="payRestore">Restore purchases</button><span id="payLinks"></span></div>
-    <p class="fine">Monthly and yearly plans renew at the price shown until you cancel. Lifetime is a single payment. Payment is charged to your Apple Account. Cancel at least 24 hours before the renewal date in your App Store account settings. 301, 501 and Count-Up stay free.</p>
+    <div class="payfoot">
+      <button type="button" class="cta" id="payBuy">Continue</button>
+      <p class="note" id="payNote" aria-live="polite"></p>
+      <div class="links center"><button type="button" class="link" id="payRestore">Restore purchases</button><span class="links" id="payLinks"></span></div>
+    </div>
   </div>
 </div>
 

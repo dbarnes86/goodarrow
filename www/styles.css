@@ -17,7 +17,7 @@
   color-scheme:dark;
 }
 
-*{box-sizing:border-box}
+*,*::before,*::after{box-sizing:border-box}
 [hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%;background:var(--bg)}
 body{margin:0;min-height:100%;color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.35;
@@ -383,3 +383,29 @@ body{min-height:0;display:flex;flex-direction:column;padding-bottom:calc(env(saf
 .card.tight table{font-size:15.5px}
 .card.tight .tot{font-size:22px}
 .card.tight .nm{font-size:14px}
+
+/* ---------- paywall layout: plans and the button always on screen ---------- */
+.pay{padding:0;gap:0;overflow:hidden}
+.payscroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none;display:flex;flex-direction:column;gap:13px;
+  padding:0 max(16px,env(safe-area-inset-right,0px)) 14px max(16px,env(safe-area-inset-left,0px))}
+.payscroll::-webkit-scrollbar{display:none}
+.payscroll>*{flex-shrink:0}
+.payhero{padding:22px 20px 16px;gap:7px;border-radius:0}
+.payhero h2{font-size:38px;max-width:8.5em}
+.payhero p{font-size:14px}
+.paygames{gap:6px 8px}
+.pg{font-size:10px;gap:4px}
+.pg .gicon{width:38px;height:38px;border-radius:11px}
+.pg .gicon svg{width:21px;height:21px}
+.perks{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px}
+.perks li{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#D5DCEF}
+.perks li::before{grid-row:auto;width:18px;height:18px;background-size:11px;margin:0;flex:none}
+.plans{gap:8px}
+.plan{min-height:58px;padding:8px 14px}
+.plan b{font-size:27px}
+.payfoot{flex:none;display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line-solid);background:#0B1122;
+  padding:12px max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 12px) max(16px,env(safe-area-inset-left,0px))}
+.payfoot .note{min-height:0;text-align:center}
+.payfoot .note:empty{display:none}
+.payfoot .links{gap:4px 18px}
+@media (max-height:700px){ .payhero{padding:16px 18px 12px} .payhero h2{font-size:30px} .payhero p{display:none} .pg{font-size:0;gap:0} .plan{min-height:52px} .cta{height:52px} }
