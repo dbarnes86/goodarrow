@@ -1,0 +1,10 @@
+{
+  "appId": "app.goodarrow.ios",
+  "appName": "Good Arrows",
+  "webDir": "www",
+  "backgroundColor": "#121a17",
+  "ios": {
+    "contentInset": "never",
+    "allowsLinkPreview": false
+  }
+}

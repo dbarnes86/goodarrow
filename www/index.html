@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="color-scheme" content="light dark">
+<meta name="format-detection" content="telephone=no">
+<title>Good Arrows</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1 id="title">301</h1>
+    <span class="info" id="info"></span>
+    <button type="button" class="icon" id="openSet" aria-label="Settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h8M16 18h4"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="14" cy="18" r="2"/></svg>
+    </button>
+  </header>
+
+  <div class="switch" id="tabs">
+    <button type="button" id="tabX" data-g="x01">301</button>
+    <button type="button" id="tabG" data-g="golf">Golf<span class="lock" id="lock">Pro</span></button>
+  </div>
+
+  <section class="stack" id="vx">
+    <div class="players" id="players"></div>
+    <div class="turn">
+      <div class="slots" id="slots"></div>
+      <div class="hint" id="hint" aria-live="polite"></div>
+    </div>
+    <div class="pad" id="pad">
+      <div class="mods" id="mods">
+        <button type="button" data-m="1" id="mod1">Single</button>
+        <button type="button" data-m="2" id="mod2">Double</button>
+        <button type="button" data-m="3" id="mod3">Treble</button>
+      </div>
+      <div class="nums" id="nums"></div>
+      <div class="extra">
+        <button type="button" id="k25">25</button>
+        <button type="button" id="kbull">Bull</button>
+        <button type="button" id="kmiss">Miss</button>
+        <button type="button" id="kundo" class="undo">Undo</button>
+      </div>
+    </div>
+    <div class="win" id="win" hidden></div>
+  </section>
+
+  <section class="stack" id="vg" hidden>
+    <div class="lead" id="glead"></div>
+    <div class="card" id="gcard"></div>
+    <div class="turn"><div class="hint" id="ghint" aria-live="polite"></div></div>
+    <div class="gkeys" id="gkeys">
+      <button type="button" class="sc p0" data-s="0"><b>0</b><small>Par</small></button>
+      <button type="button" class="sc p1" data-s="1"><b>+1</b><small>Next door</small></button>
+      <button type="button" class="sc p2" data-s="2"><b>+2</b><small></small></button>
+      <button type="button" class="sc p3" data-s="3"><b>+3</b><small>Off board</small></button>
+      <button type="button" class="sc n1" data-s="-1"><b>-1</b><small>Inner</small></button>
+      <button type="button" class="sc n2" data-s="-2"><b>-2</b><small>Double</small></button>
+      <button type="button" class="sc n3" data-s="-3"><b>-3</b><small>Treble</small></button>
+      <button type="button" class="sc n4" data-s="-4"><b>-4</b><small></small></button>
+      <button type="button" id="gkeep" class="keep">Keep</button>
+      <button type="button" id="gundo" class="undo">Undo</button>
+    </div>
+    <div class="win" id="gwin" hidden></div>
+  </section>
+
+  <div class="foot">
+    <span id="stLab">Throws first</span>
+    <div class="switch" id="starter"><button type="button" id="st0" data-p="0"></button><button type="button" id="st1" data-p="1"></button></div>
+    <button type="button" class="btn" id="reset">New match</button>
+  </div>
+
+  <section class="hist" id="hist"></section>
+</div>
+
+<canvas id="cv" aria-hidden="true" hidden></canvas>
+<div class="bn" id="bn" aria-hidden="true" hidden><div class="bnb" id="bnb"></div></div>
+
+<!-- Settings -->
+<div class="sheet" id="setSheet" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+    <header><h2 id="setTitle">Settings</h2><button type="button" class="btn" data-close>Done</button></header>
+
+    <div class="group">
+      <h3>Game</h3>
+      <div class="switch" id="gameSw"><button type="button" id="gsX" data-g="x01">301</button><button type="button" id="gsG" data-g="golf">Golf</button></div>
+    </div>
+
+    <div class="group">
+      <h3>Players</h3>
+      <div class="field"><input type="text" id="name0" maxlength="14" autocomplete="off" autocapitalize="words" spellcheck="false" aria-label="Player 1 name" placeholder="Player 1"></div>
+      <div class="field"><input type="text" id="name1" maxlength="14" autocomplete="off" autocapitalize="words" spellcheck="false" aria-label="Player 2 name" placeholder="Player 2"></div>
+    </div>
+
+    <div class="group">
+      <h3>301 and 501</h3>
+      <div class="field"><label>Start score<small id="startNote"></small></label>
+        <div class="switch" id="startSw"><button type="button" id="start301" data-v="301">301</button><button type="button" id="start501" data-v="501">501</button></div></div>
+      <div class="field"><label for="dblOut">Double to finish</label><input type="checkbox" id="dblOut"></div>
+    </div>
+
+    <div class="group">
+      <h3>Golf</h3>
+      <div class="field"><label for="h18">Play 18 holes<small id="holesNote">Off plays nine</small></label><input type="checkbox" id="h18"></div>
+      <div class="field"><label for="roast">Roast mode<small>A cutting remark for anyone who cards a +2</small></label><input type="checkbox" id="roast"></div>
+    </div>
+
+    <div class="group">
+      <h3>Subscription</h3>
+      <p class="note" id="subState"></p>
+      <div class="field"><button type="button" class="btn" id="setSub">See Pro</button><button type="button" class="btn" id="setRestore">Restore purchases</button></div>
+      <p class="note" id="setNote" aria-live="polite"></p>
+    </div>
+
+    <div class="group">
+      <h3>Scoreboard</h3>
+      <div class="field"><label>Clear every saved result<small>This can't be undone</small></label><button type="button" class="btn" id="clearHist">Clear</button></div>
+    </div>
+
+    <div class="group">
+      <div class="links" id="setLinks"></div>
+      <p class="fine" id="about"></p>
+    </div>
+  </div>
+</div>
+
+<!-- Paywall -->
+<div class="sheet" id="paySheet" hidden>
+  <div class="panel pay" role="dialog" aria-modal="true" aria-labelledby="payTitle">
+    <header><h2 id="payTitle">Golf is a Pro game</h2><button type="button" class="btn" data-close>Not now</button></header>
+    <ul>
+      <li>Darts golf over 9 or 18 holes, scored against par</li>
+      <li>A colour-coded scorecard with honours on every hole</li>
+      <li>Celebrations for the good holes and roasts for the bad ones</li>
+      <li>A scoreboard of every round you finish</li>
+    </ul>
+    <div class="price"><span id="payPrice"></span><small>a month</small></div>
+    <button type="button" class="btn primary" id="payBuy">Subscribe</button>
+    <p class="note" id="payNote" aria-live="polite"></p>
+    <p class="fine">The subscription renews every month at the price above until you cancel. Payment is charged to your Apple Account. Cancel at least 24 hours before the renewal date in your App Store account settings. 301 and 501 stay free.</p>
+    <div class="links"><button type="button" class="btn" id="payRestore">Restore purchases</button></div>
+    <div class="links" id="payLinks"></div>
+  </div>
+</div>
+
+<script src="vendor/capacitor.js"></script>
+<script src="config.js"></script>
+<script src="engine.js"></script>
+<script src="store.js"></script>
+<script src="pro.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

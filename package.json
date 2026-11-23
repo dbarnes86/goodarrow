@@ -1,0 +1,28 @@
+{
+  "name": "goodarrow",
+  "version": "1.0.0",
+  "description": "Darts scorer for iPhone: 301, 501 and darts golf.",
+  "scripts": {
+    "test": "node --test tests/engine.test.js",
+    "test:ui": "node tests/ui.test.js",
+    "serve": "npx --yes serve www",
+    "sync": "npm run vendor && cap sync ios",
+    "open": "cap open ios",
+    "assets": "node scripts/make-assets.js",
+    "vendor": "cp node_modules/@capacitor/core/dist/capacitor.js www/vendor/capacitor.js"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.6.2",
+    "@capacitor/preferences": "^8.0.1",
+    "@fontsource/big-shoulders-display": "^5.3.0",
+    "@fontsource/figtree": "^5.3.0",
+    "@revenuecat/purchases-capacitor": "^14.1.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.2"
+  },
+  "private": true
+}
