@@ -32,11 +32,30 @@ const svg = (size, mark) => `<svg xmlns="http://www.w3.org/2000/svg" width="${si
     { size: 2732, mark: 760, file: 'ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-2.png' },
   ];
   fs.writeFileSync(path.join(root, 'resources/icon.svg'), svg(1024, 1024));
+  // Android: legacy and round launcher icons, the adaptive-icon foreground (board inside the 66% safe zone),
+  // and every splash.png Capacitor generated, redrawn at its own size.
+  const dens = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
+  const res = path.join(root, 'android/app/src/main/res');
+  if (fs.existsSync(res)) {
+    for (const [d, k] of Object.entries(dens)) {
+      out.push({ size: 48 * k, mark: 48 * k * 0.9, file: `android/app/src/main/res/mipmap-${d}/ic_launcher.png` });
+      out.push({ size: 48 * k, mark: 48 * k * 0.9, file: `android/app/src/main/res/mipmap-${d}/ic_launcher_round.png`, round: true });
+      out.push({ size: 108 * k, mark: 108 * k * 0.62, file: `android/app/src/main/res/mipmap-${d}/ic_launcher_foreground.png` });
+    }
+    for (const dir of fs.readdirSync(res).filter((x) => x.startsWith('drawable'))) {
+      const f = path.join(res, dir, 'splash.png');
+      if (!fs.existsSync(f)) continue;
+      const b = fs.readFileSync(f), w = b.readUInt32BE(16), h = b.readUInt32BE(20);
+      out.push({ size: w, h, mark: Math.min(w, h) * 0.32, file: path.relative(root, f) });
+    }
+  }
   const browser = await chromium.launch();
   for (const o of out) {
-    const page = await browser.newPage({ viewport: { width: o.size, height: o.size }, deviceScaleFactor: 1 });
-    await page.setContent(`<body style="margin:0">${svg(o.size, o.mark)}</body>`);
-    await page.screenshot({ path: path.join(root, o.file), omitBackground: false });
+    const w = Math.round(o.size), h = Math.round(o.h || o.size), mk = Math.round(o.mark);
+    const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1 });
+    const art = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="${BG}"/><g transform="translate(${(w - mk) / 2} ${(h - mk) / 2})">${board(mk)}</g></svg>`;
+    await page.setContent(`<body style="margin:0;background:${o.round ? 'transparent' : BG}">${o.round ? `<div style="width:${w}px;height:${h}px;border-radius:50%;overflow:hidden">${art}</div>` : art}</body>`);
+    await page.screenshot({ path: path.join(root, o.file), omitBackground: !!o.round });
     await page.close();
   }
   await browser.close();

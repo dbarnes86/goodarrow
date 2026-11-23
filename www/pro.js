@@ -64,9 +64,10 @@ window.Pro = (function () {
     }
     // Start from the last known answer so a customer is not locked out while offline.
     try { state.active = localStorage.getItem(CACHE) === '1'; } catch (e) {}
-    if (!RC || !cfg.revenueCatKey) { emit(); return Promise.resolve(state); }
+    var key = cap.getPlatform && cap.getPlatform() === 'android' ? cfg.revenueCatKeyAndroid : cfg.revenueCatKey;
+    if (!RC || !key) { emit(); return Promise.resolve(state); }
     if (starting) return starting;
-    starting = (state.available ? Promise.resolve() : RC.configure({ apiKey: cfg.revenueCatKey }).then(function () {
+    starting = (state.available ? Promise.resolve() : RC.configure({ apiKey: key }).then(function () {
       state.available = true;
       // Fires whenever RevenueCat learns something new: a renewal, a refund, a purchase on another device.
       if (RC.addCustomerInfoUpdateListener) RC.addCustomerInfoUpdateListener(apply);
