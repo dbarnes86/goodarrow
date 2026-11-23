@@ -2,7 +2,7 @@
 
 A darts scorer for iPhone. 301 and 501 are free. Darts golf is the paid game, on a monthly subscription.
 
-The bundle ID is `app.goodarrow.ios` and the website is goodarrow.app. Items marked TODO in `www/config.js` are still to be filled in.
+The bundle ID is `com.ludis.goodarrows` and the website is goodarrow.app. Items marked TODO in `www/config.js` are still to be filled in.
 
 ## How it is built
 
@@ -68,7 +68,7 @@ These need an Apple Developer account and a Mac with Xcode. None of them have be
 3. Copy the public iOS SDK key (it starts `appl_`) into `revenueCatKey` in `www/config.js`.
 
 **The app**
-1. Register the bundle ID `app.goodarrow.ios` in the Apple Developer portal. If you want a different one, change `appId` in `capacitor.config.json` and `PRODUCT_BUNDLE_IDENTIFIER` in Xcode before creating the app record.
+1. Register the bundle ID `com.ludis.goodarrows` in the Apple Developer portal. If you want a different one, change `appId` in `capacitor.config.json` and `PRODUCT_BUNDLE_IDENTIFIER` in Xcode before creating the app record.
 2. Fill in the bracketed items in `site/privacy/index.html`, deploy `site/` to goodarrow.app so the policy is live at https://goodarrow.app/privacy, and add `supportEmail` in `www/config.js`.
 3. On the Mac: `npm install`, `npm run sync`, `npm run open`. In Xcode set the signing team, then run on a real iPhone.
 4. Test a purchase, a restore and a cancellation with a sandbox Apple Account.
