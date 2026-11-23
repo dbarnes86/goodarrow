@@ -340,3 +340,46 @@ input[type="text"]{width:100%;height:54px;border-radius:14px;border:1.5px solid 
   .result,.panel,.screen,.sheet,.slot.new,.payart,.toast{animation:none}
   button:active:not(:disabled){transform:none}
 }
+
+/* ---------- app shell ----------
+   This is an app, not a page: the document never scrolls. A game fits the screen, with the keys
+   sized to the space left. Only the lobby's list and a tall sheet scroll, each inside itself. */
+html,body{height:100%;overflow:hidden}
+body{min-height:0;display:flex;flex-direction:column;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 12px)}
+.screen{flex:1;min-height:0;width:100%;gap:12px}
+.scroll,.gtop{min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;scrollbar-width:none}
+.scroll::-webkit-scrollbar,.gtop::-webkit-scrollbar,.panel::-webkit-scrollbar{display:none}
+.scroll>*,.gtop>*{flex-shrink:0}
+.scroll{flex:1;gap:16px;margin:0 -6px;padding:4px 6px 20px}
+.gtop{flex:0 1 auto;gap:12px;margin:-4px -6px -10px;padding:4px 6px 16px}
+.bar,.turn,.result,.mods,.extra,.padrow{flex:none}
+/* When space is short the keys give way first, down to their minimum; only then does the scoreboard scroll.
+   The pad's rows sit directly in the screen's column so each can flex on its own. */
+.pad{display:contents}
+.pad>:first-child{margin-top:auto}
+.nums,.btns{flex:0 1000 auto;--rows:4}
+.nums{min-height:calc(var(--rows)*38px + (var(--rows) - 1)*9px)}
+.nums.c3{min-height:calc(var(--rows)*46px + (var(--rows) - 1)*9px)}
+.btns{min-height:calc(var(--rows)*58px + (var(--rows) - 1)*10px)}
+.btns.small{min-height:calc(var(--rows)*54px + (var(--rows) - 1)*10px)}
+.nums{grid-auto-rows:minmax(38px,60px)}
+.nums.c3{grid-auto-rows:minmax(46px,76px)}
+.btns{grid-auto-rows:minmax(58px,96px)}
+.btns.small{grid-auto-rows:minmax(54px,80px)}
+.nums .key,.nums.c3 .key,.pb,.btns.small .pb{height:auto}
+.sheet{touch-action:none}
+.panel{touch-action:pan-y;overscroll-behavior:contain;scrollbar-width:none}
+@media (max-height:700px){
+  .pm{--pm:64px} .cards.n3 .pm,.cards.n4 .pm{--pm:48px} .cards.n5 .pm,.cards.n6 .pm{--pm:40px}
+  .slot,.target{height:48px} .turn{padding:10px;gap:8px 10px} .hint{font-size:13.5px}
+  .mods button{height:44px} .extra .key{height:48px} .padrow button{height:50px}
+  .lead{font-size:30px} .lead small{margin-top:3px} .card th,.card td{padding:8px 6px} .card .tot{font-size:23px}
+  .crk th,.crk td{padding:2px 4px} .crk svg{width:19px;height:19px} .crk th b{font-size:22px} .crk td.no{font-size:18px}
+  .pc{padding:8px 10px 9px} .lives{margin-top:3px}
+  .pnote{display:none}
+}
+/* four or more players: a tighter scorecard so every row stays on screen */
+.card.tight th,.card.tight td{padding:6px 6px}
+.card.tight table{font-size:15.5px}
+.card.tight .tot{font-size:22px}
+.card.tight .nm{font-size:14px}

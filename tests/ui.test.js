@@ -183,10 +183,25 @@ function serve() {
       assert.ok(await page.locator('#setupSheet').isHidden());
     });
 
-    await check('no sideways scroll at phone width, lobby and game', async () => {
-      const over = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-      assert.equal(await over(), 0);
-      await start('bobs'); assert.equal(await over(), 0);
+    await check('it behaves like an app: the page itself never scrolls, in the lobby, a sheet or a game', async () => {
+      const over = () => page.evaluate(() => { const d = document.documentElement; return [d.scrollWidth - d.clientWidth, d.scrollHeight - d.clientHeight]; });
+      const pageY = () => page.evaluate(() => window.scrollY + document.documentElement.scrollTop + document.body.scrollTop);
+      assert.deepEqual(await over(), [0, 0], 'lobby');
+      const listY = () => page.evaluate(() => document.querySelector('#lobby .scroll').scrollTop);
+      await page.evaluate(() => { document.querySelector('#lobby .scroll').scrollTop = 120; });
+      await page.click('#openSet');
+      await page.mouse.move(195, 80); await page.mouse.wheel(0, 400); await page.mouse.wheel(0, -400);   // over the dimmed area
+      await page.mouse.move(195, 700); await page.mouse.wheel(0, 2000); await page.mouse.wheel(0, 2000);  // over the sheet, past its end
+      await page.waitForTimeout(150);
+      assert.equal(await pageY(), 0, 'the screen behind a sheet stays put');
+      assert.equal(await listY(), 120, 'and so does the list behind it');
+      await page.click('#setSheet [data-close]');
+      for (const g of ['bobs', 'x01', 'golf']) {
+        await start(g); assert.deepEqual(await over(), [0, 0], g);
+        const fits = await page.evaluate(() => { const b = [...document.querySelectorAll('#pad button')].pop().getBoundingClientRect(); const t = document.querySelector('.gtop'); return b.bottom <= innerHeight && t.scrollHeight - t.clientHeight <= 1; });
+        assert.ok(fits, g + ' fits the screen with every key visible and nothing to scroll');
+        await page.click('#toLobby');
+      }
     });
 
     assert.deepEqual(errors, [], 'no console errors');

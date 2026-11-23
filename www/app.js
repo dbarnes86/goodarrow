@@ -328,7 +328,7 @@
       }
       t += '</tr>';
     }
-    var card = $('board'); card.className = 'card'; card.innerHTML = t + '</table>';
+    var card = $('board'); card.className = 'card' + (s.n >= 4 ? ' tight' : ''); card.innerHTML = t + '</table>';
     var hc = card.querySelector('th.hc');
     if (hc && !edit) card.scrollLeft = hc.offsetLeft - (card.clientWidth + 100) / 2;
     var ld = b.lead, lead = $('lead');
@@ -358,11 +358,11 @@
       if (pad.type === 'full') {
         var nums = pad.nums || Array.apply(null, { length: 20 }).map(function (_, k) { return k + 1; });
         h = '<div class="mods"><button type="button" data-m="1">Single</button><button type="button" data-m="2">Double</button><button type="button" data-m="3">Treble</button></div>' +
-          '<div class="nums' + (pad.nums ? ' c3' : '') + '">' + nums.map(function (n) { return '<button type="button" class="key" data-n="' + n + '">' + n + '</button>'; }).join('') + '</div>' +
+          '<div class="nums' + (pad.nums ? ' c3' : '') + '" style="--rows:' + Math.ceil(nums.length / (pad.nums ? 3 : 5)) + '">' + nums.map(function (n) { return '<button type="button" class="key" data-n="' + n + '">' + n + '</button>'; }).join('') + '</div>' +
           '<div class="extra"><button type="button" class="key" data-x="25">25</button><button type="button" class="key" data-x="bull">Bull</button><button type="button" class="key" data-x="miss">Miss</button><button type="button" class="key undo" data-a="undo">Undo</button></div>';
       } else {
         padBtns = pad.btns;
-        h = '<div class="btns' + (pad.btns.length > 4 && !pad.golf ? ' small' : '') + '" style="--cols:' + pad.cols + '">' + pad.btns.map(function (b, k) {
+        h = '<div class="btns' + (pad.btns.length > 4 && !pad.golf ? ' small' : '') + '" style="--cols:' + pad.cols + ';--rows:' + Math.ceil(pad.btns.length / pad.cols) + '">' + pad.btns.map(function (b, k) {
           return '<button type="button" class="pb ' + b.c + '" data-b="' + k + '"><b>' + esc(b.l) + '</b><small>' + esc(tok(b.s, M.names)) + '</small></button>';
         }).join('') + '</div><div class="padrow' + (pad.golf ? '' : ' one') + '">' + (pad.golf ? '<button type="button" class="keep" data-a="keep">Keep</button>' : '') + '<button type="button" class="undo" data-a="undo">Undo</button></div>';
       }
