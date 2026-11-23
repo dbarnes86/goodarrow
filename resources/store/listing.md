@@ -104,6 +104,6 @@ Privacy policy URL: `https://goodarrow.app/privacy`
 
 ## Screenshots
 
-Six are ready in `resources/store/screenshots/`, at 1320 x 2868 for the 6.9-inch iPhone slot. Upload them in order, 1 to 6. Apple scales them down for smaller iPhones, so this one set covers every iPhone size.
+Six are ready in `resources/store/screenshots/`, in three sizes. Use the folder that matches the size App Store Connect asks for: `1206x2622` for "iPhone with Dynamic Island (medium display)", `1320x2868` for the large display, and `1179x2556` if the medium slot rejects 1206 x 2622. Upload them in order, 1 to 6. Apple scales them down for smaller iPhones.
 
 They are rendered from the app itself by `npm run store-shots`, so re-run that after any design change.

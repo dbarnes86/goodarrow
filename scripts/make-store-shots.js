@@ -1,10 +1,12 @@
 /* Renders the App Store screenshots from the real app: six game states, each framed under a headline,
-   at 1320 x 2868 (the 6.9-inch size Apple asks for). Run: npm run store-shots (needs Playwright).
-   Output: resources/store/screenshots/ */
+   in every iPhone size App Store Connect asks for. Run: npm run store-shots (needs Playwright).
+   Output: resources/store/screenshots/<width>x<height>/ */
 const http = require('http'), fs = require('fs'), path = require('path');
 const { chromium } = require('playwright');
 const ROOT = path.join(__dirname, '..', 'www');
 const OUT = path.join(__dirname, '..', 'resources', 'store', 'screenshots');
+// Pixel sizes Apple accepts, as points at 3x: large display (6.9-inch) and medium display (6.3-inch, two variants).
+const SIZES = [[440, 956], [402, 874], [393, 852]];
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.png': 'image/png' };
 const raw = {};   // name -> PNG buffer of the bare app screen
 
@@ -110,13 +112,15 @@ const SHOTS = [
   await page.context().close();
 
   /* frame each screen under its headline */
-  const frame = await (await browser.newContext({ viewport: { width: 440, height: 956 }, deviceScaleFactor: 3 })).newPage();
+  for (const [W, H] of SIZES) {
+  const dir = path.join(OUT, (W * 3) + 'x' + (H * 3)); fs.mkdirSync(dir, { recursive: true });
+  const frame = await (await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 3 })).newPage();
   for (const s of SHOTS) {
     await frame.goto(base + 'index.html');   // for the fonts; the body is replaced below
     await frame.setContent(`<!doctype html><html><head><base href="${base}"><style>
       @font-face{font-family:BS;font-weight:800;src:url(fonts/big-shoulders-display-latin-800-normal.woff2)}
       @font-face{font-family:FT;font-weight:600;src:url(fonts/figtree-latin-600-normal.woff2)}
-      html,body{margin:0;width:440px;height:956px;overflow:hidden}
+      html,body{margin:0;width:${W}px;height:${H}px;overflow:hidden}
       body{background:radial-gradient(130% 70% at 50% 0%,#1D3F96 0%,#0B1530 52%,#070B16 100%);color:#F5F7FF;font-family:FT,sans-serif;position:relative}
       .ring{position:absolute;left:50%;top:-250px;width:620px;height:620px;margin-left:-310px;border-radius:50%;border:1px solid #ffffff14;box-shadow:0 0 0 60px #ffffff06,0 0 0 120px #ffffff04}
       header{position:relative;padding:50px 28px 0;text-align:center}
@@ -124,10 +128,12 @@ const SHOTS = [
       p{margin:12px auto 0;font-size:15.5px;line-height:1.35;color:#C6D6FF;max-width:330px}
       .phone{position:absolute;left:50%;top:230px;width:340px;margin-left:-170px;border-radius:44px;padding:9px;background:#1A2340;box-shadow:0 0 0 1.5px #3A4A78,0 30px 80px rgba(0,0,0,.6),0 0 90px rgba(47,123,255,.28)}
       .phone img{display:block;width:100%;border-radius:36px}
-    </style></head><body><div class="ring"></div><header><h1>${s.title}</h1><p>${s.sub}</p></header><div class="phone"><img src="raw/${s.name}.png"></div></body></html>`);
+    </style></head><body><div class="stage" style="position:absolute;left:0;top:0;width:440px;height:956px;transform:scale(${W / 440});transform-origin:0 0"><div class="ring"></div><header><h1>${s.title}</h1><p>${s.sub}</p></header><div class="phone"><img src="raw/${s.name}.png"></div></div></body></html>`);
     await frame.evaluate(() => Promise.all([document.fonts.ready, ...[...document.images].map((i) => i.decode())]));
-    await frame.screenshot({ path: path.join(OUT, s.name + '.png') });
+    await frame.screenshot({ path: path.join(dir, s.name + '.png') });
+  }
+  await frame.context().close();
   }
   await browser.close(); srv.close();
-  console.log('wrote ' + SHOTS.length + ' screenshots to resources/store/screenshots');
+  console.log('wrote ' + SHOTS.length + ' screenshots in ' + SIZES.length + ' sizes to resources/store/screenshots');
 })().catch((e) => { console.error(e); process.exit(1); });
