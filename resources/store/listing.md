@@ -6,7 +6,7 @@ Copy each field into App Store Connect, on the app's version page (Distribution,
 
 | Field | Value |
 |---|---|
-| Name (30) | `Good Arrows: Darts Scorer` |
+| Name (30) | `Good Arrows: Darts Games` (the Darts Scorer variant was already taken) |
 | Subtitle (30) | `301, Cricket, Killer and more` |
 | Primary category | Sports |
 | Secondary category | Entertainment |
