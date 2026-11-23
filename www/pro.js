@@ -1,7 +1,7 @@
 /* Purchases, backed by RevenueCat on device.
    Pro.state = { active, packages, available, busy }. Subscribe to changes with Pro.onChange(fn).
-   The paywall and the customer centre are RevenueCat's native screens, designed in the RevenueCat
-   dashboard; the app's own paywall sheet is the fallback when they cannot be shown. */
+   The app draws its own paywall and buys through RevenueCat. The customer centre is RevenueCat's
+   native screen. Set nativePaywall in config.js to use a paywall designed in the RevenueCat dashboard instead. */
 window.Pro = (function () {
   'use strict';
   var cfg = window.APP_CONFIG, CACHE = 'goodarrows.pro';
@@ -13,7 +13,13 @@ window.Pro = (function () {
   var listeners = [], raw = {}, starting = null;
   var ORDER = ['MONTHLY', 'ANNUAL', 'LIFETIME'];
   var LABEL = { MONTHLY: 'Monthly', ANNUAL: 'Yearly', LIFETIME: 'Lifetime' };
-  var TERM = { MONTHLY: 'a month', ANNUAL: 'a year', LIFETIME: 'once' };
+  var TERM = { MONTHLY: ' / month', ANNUAL: ' / year', LIFETIME: ' once' };
+  // Shown in a browser, where there is no store, so the paywall can be seen. Never used on device.
+  var DEMO = [
+    { id: 'demo-monthly', type: 'MONTHLY', label: 'Monthly', price: '$0.99', term: TERM.MONTHLY, amount: 0.99 },
+    { id: 'demo-yearly', type: 'ANNUAL', label: 'Yearly', price: '$7.99', term: TERM.ANNUAL, amount: 7.99 },
+    { id: 'demo-lifetime', type: 'LIFETIME', label: 'Lifetime', price: '$19.99', term: TERM.LIFETIME, amount: 19.99 }
+  ];
 
   function emit() { listeners.forEach(function (fn) { try { fn(state); } catch (e) {} }); }
   function setActive(on) {
@@ -36,7 +42,7 @@ window.Pro = (function () {
       state.packages = list.map(function (p) {
         raw[p.identifier] = p;
         return { id: p.identifier, type: p.packageType, label: LABEL[p.packageType] || p.product.title || p.identifier,
-          price: p.product.priceString, term: TERM[p.packageType] || '' };
+          price: p.product.priceString, term: TERM[p.packageType] || '', amount: p.product.price || 0 };
       }).sort(function (a, b) {
         var x = ORDER.indexOf(a.type), y = ORDER.indexOf(b.type);
         return (x < 0 ? 9 : x) - (y < 0 ? 9 : y);
@@ -94,9 +100,10 @@ window.Pro = (function () {
     }, function (e) { busy(false); throw message(e, 'Purchases could not be restored.'); });
   }
 
-  /** Show RevenueCat's paywall. Resolves 'purchased', 'cancelled', or 'fallback' when it could not be shown. */
+  /** Show RevenueCat's hosted paywall when config.nativePaywall asks for it. Resolves 'purchased', 'cancelled',
+      or 'fallback' when the app should show its own paywall instead. */
   function paywall() {
-    if (!UI || !state.available) return Promise.resolve('fallback');
+    if (!cfg.nativePaywall || !UI || !state.available) return Promise.resolve('fallback');
     return UI.presentPaywall().then(function (r) {
       var res = r && r.result;
       if (res === 'ERROR' || res === 'NOT_PRESENTED') return 'fallback';
@@ -111,7 +118,7 @@ window.Pro = (function () {
   }
 
   return {
-    state: state, native: native, init: init, refresh: refresh,
+    state: state, native: native, demo: DEMO, init: init, refresh: refresh,
     purchase: purchase, restore: restore, paywall: paywall, manage: manage,
     onChange: function (fn) { listeners.push(fn); }
   };

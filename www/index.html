@@ -3,79 +3,99 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#070B16">
 <meta name="format-detection" content="telephone=no">
 <title>Good Arrows</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="app">
-  <header class="top">
-    <h1 id="title">301</h1>
-    <span class="info" id="info"></span>
+
+<!-- Home: players, games, recent results -->
+<main class="screen" id="lobby">
+  <header class="bar">
+    <div class="brand"><span class="mark" id="mark" aria-hidden="true"></span><b>Good Arrows</b></div>
     <button type="button" class="icon" id="openSet" aria-label="Settings">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h8M16 18h4"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="14" cy="18" r="2"/></svg>
     </button>
   </header>
 
-  <div class="switch" id="tabs">
-    <button type="button" id="tabX" data-g="x01">301</button>
-    <button type="button" id="tabG" data-g="golf">Golf<span class="lock" id="lock">Pro</span></button>
-  </div>
+  <section class="resume" id="resume" hidden></section>
 
-  <section class="stack" id="vx">
-    <div class="players" id="players"></div>
-    <div class="turn">
-      <div class="slots" id="slots"></div>
-      <div class="hint" id="hint" aria-live="polite"></div>
-    </div>
-    <div class="pad" id="pad">
-      <div class="mods" id="mods">
-        <button type="button" data-m="1" id="mod1">Single</button>
-        <button type="button" data-m="2" id="mod2">Double</button>
-        <button type="button" data-m="3" id="mod3">Treble</button>
-      </div>
-      <div class="nums" id="nums"></div>
-      <div class="extra">
-        <button type="button" id="k25">25</button>
-        <button type="button" id="kbull">Bull</button>
-        <button type="button" id="kmiss">Miss</button>
-        <button type="button" id="kundo" class="undo">Undo</button>
-      </div>
-    </div>
-    <div class="win" id="win" hidden></div>
+  <section class="block">
+    <div class="head"><h2>Players</h2><span id="playerCount"></span></div>
+    <div class="chips" id="players"></div>
   </section>
 
-  <section class="stack" id="vg" hidden>
-    <div class="lead" id="glead"></div>
-    <div class="card" id="gcard"></div>
-    <div class="turn"><div class="hint" id="ghint" aria-live="polite"></div></div>
-    <div class="gkeys" id="gkeys">
-      <button type="button" class="sc p0" data-s="0"><b>0</b><small>Par</small></button>
-      <button type="button" class="sc p1" data-s="1"><b>+1</b><small>Next door</small></button>
-      <button type="button" class="sc p2" data-s="2"><b>+2</b><small></small></button>
-      <button type="button" class="sc p3" data-s="3"><b>+3</b><small>Off board</small></button>
-      <button type="button" class="sc n1" data-s="-1"><b>-1</b><small>Inner</small></button>
-      <button type="button" class="sc n2" data-s="-2"><b>-2</b><small>Double</small></button>
-      <button type="button" class="sc n3" data-s="-3"><b>-3</b><small>Treble</small></button>
-      <button type="button" class="sc n4" data-s="-4"><b>-4</b><small></small></button>
-      <button type="button" id="gkeep" class="keep">Keep</button>
-      <button type="button" id="gundo" class="undo">Undo</button>
-    </div>
-    <div class="win" id="gwin" hidden></div>
+  <section class="block">
+    <div class="head"><h2>Games</h2><span id="gameCount"></span></div>
+    <div class="games" id="games"></div>
   </section>
 
-  <div class="foot">
-    <span id="stLab">Throws first</span>
-    <div class="switch" id="starter"><button type="button" id="st0" data-p="0"></button><button type="button" id="st1" data-p="1"></button></div>
-    <button type="button" class="btn" id="reset">New match</button>
+  <section class="block" id="hist"></section>
+</main>
+
+<!-- A game in play -->
+<main class="screen" id="game" hidden>
+  <header class="bar">
+    <button type="button" class="icon" id="toLobby" aria-label="All games">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <div class="gtitle"><b id="gTitle"></b><span id="gInfo"></span></div>
+    <button type="button" class="icon" id="openRules" aria-label="How to play">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.6 2.3c-.8.5-1.2 1-1.2 2"/><path d="M12 17v.2"/></svg>
+    </button>
+  </header>
+
+  <div class="lead" id="lead" hidden></div>
+  <div class="cards" id="cards"></div>
+  <div id="board" hidden></div>
+
+  <div class="turn" id="turn">
+    <div class="target" id="target" hidden><small>Target</small><b id="targetV"></b></div>
+    <div class="slots" id="slots"></div>
+    <p class="hint" id="hint" aria-live="polite"></p>
   </div>
 
-  <section class="hist" id="hist"></section>
-</div>
+  <div class="pad" id="pad"></div>
+  <div class="result" id="result" hidden></div>
+</main>
 
 <canvas id="cv" aria-hidden="true" hidden></canvas>
 <div class="bn" id="bn" aria-hidden="true" hidden><div class="bnb" id="bnb"></div></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<!-- Game set-up -->
+<div class="sheet" id="setupSheet" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="suName">
+    <header><div class="ghead"><span class="gicon" id="suIcon"></span><div><h2 id="suName"></h2><p id="suBlurb"></p></div></div><button type="button" class="btn" data-close>Close</button></header>
+    <div class="group"><h3>How to play</h3><ol class="how" id="suHow"></ol></div>
+    <div class="group" id="suOpts"></div>
+    <div class="group"><h3>Throws first</h3><div class="seg wrap" id="suFirst"></div></div>
+    <p class="note" id="suNote"></p>
+    <button type="button" class="cta" id="suStart">Start game</button>
+  </div>
+</div>
+
+<!-- Player -->
+<div class="sheet" id="playerSheet" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="plTitle">
+    <header><h2 id="plTitle">Player</h2><button type="button" class="btn" data-close>Done</button></header>
+    <div class="group">
+      <input type="text" id="plName" maxlength="14" autocomplete="off" autocapitalize="words" spellcheck="false" aria-label="Player name" placeholder="Name">
+    </div>
+    <button type="button" class="btn danger" id="plRemove">Remove player</button>
+  </div>
+</div>
+
+<!-- How to play, from inside a game -->
+<div class="sheet" id="rulesSheet" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="ruName">
+    <header><div class="ghead"><span class="gicon" id="ruIcon"></span><div><h2 id="ruName"></h2><p id="ruBlurb"></p></div></div><button type="button" class="btn" data-close>Close</button></header>
+    <ol class="how" id="ruHow"></ol>
+    <button type="button" class="btn danger" id="ruEnd">End this game</button>
+  </div>
+</div>
 
 <!-- Settings -->
 <div class="sheet" id="setSheet" hidden>
@@ -83,38 +103,20 @@
     <header><h2 id="setTitle">Settings</h2><button type="button" class="btn" data-close>Done</button></header>
 
     <div class="group">
-      <h3>Game</h3>
-      <div class="switch" id="gameSw"><button type="button" id="gsX" data-g="x01">301</button><button type="button" id="gsG" data-g="golf">Golf</button></div>
-    </div>
-
-    <div class="group">
-      <h3>Players</h3>
-      <div class="field"><input type="text" id="name0" maxlength="14" autocomplete="off" autocapitalize="words" spellcheck="false" aria-label="Player 1 name" placeholder="Player 1"></div>
-      <div class="field"><input type="text" id="name1" maxlength="14" autocomplete="off" autocapitalize="words" spellcheck="false" aria-label="Player 2 name" placeholder="Player 2"></div>
-    </div>
-
-    <div class="group">
-      <h3>301 and 501</h3>
-      <div class="field"><label>Start score<small id="startNote"></small></label>
-        <div class="switch" id="startSw"><button type="button" id="start301" data-v="301">301</button><button type="button" id="start501" data-v="501">501</button></div></div>
-      <div class="field"><label for="dblOut">Double to finish</label><input type="checkbox" id="dblOut"></div>
-    </div>
-
-    <div class="group">
-      <h3>Golf</h3>
-      <div class="field"><label for="h18">Play 18 holes<small id="holesNote">Off plays nine</small></label><input type="checkbox" id="h18"></div>
-      <div class="field"><label for="roast">Roast mode<small>A cutting remark for anyone who cards a +2</small></label><input type="checkbox" id="roast"></div>
+      <h3>Play</h3>
+      <div class="field"><label for="roast">Roast mode<small>A cutting remark for anyone who cards a +2 at golf</small></label><input type="checkbox" class="tog" id="roast"></div>
+      <div class="field"><label for="haptic">Haptics<small>A tap you can feel on every dart</small></label><input type="checkbox" class="tog" id="haptic"></div>
     </div>
 
     <div class="group">
       <h3>Good Arrows Pro</h3>
       <p class="note" id="subState"></p>
-      <div class="field"><button type="button" class="btn" id="setSub">See Pro</button><button type="button" class="btn" id="setRestore">Restore purchases</button></div>
+      <div class="row2"><button type="button" class="btn" id="setSub">See Pro</button><button type="button" class="btn" id="setRestore">Restore purchases</button></div>
       <p class="note" id="setNote" aria-live="polite"></p>
     </div>
 
     <div class="group">
-      <h3>Scoreboard</h3>
+      <h3>Results</h3>
       <div class="field"><label>Clear every saved result<small>This can't be undone</small></label><button type="button" class="btn" id="clearHist">Clear</button></div>
     </div>
 
@@ -128,18 +130,27 @@
 <!-- Paywall -->
 <div class="sheet" id="paySheet" hidden>
   <div class="panel pay" role="dialog" aria-modal="true" aria-labelledby="payTitle">
-    <header><h2 id="payTitle">Golf is a Pro game</h2><button type="button" class="btn" data-close>Not now</button></header>
-    <ul>
-      <li>Darts golf over 9 or 18 holes, scored against par</li>
-      <li>A colour-coded scorecard with honours on every hole</li>
-      <li>Celebrations for the good holes and roasts for the bad ones</li>
-      <li>A scoreboard of every round you finish</li>
+    <div class="payhero">
+      <div class="payart" id="payArt" aria-hidden="true"></div>
+      <button type="button" class="icon x" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <span class="pill gold">Good Arrows Pro</span>
+      <h2 id="payTitle">Every game. Every night.</h2>
+      <p id="paySub">Unlock the full board: ten more games for up to six players.</p>
+    </div>
+    <div class="paygames" id="payGames"></div>
+    <ul class="perks">
+      <li><b>Ten more games</b>Golf, Cricket, Killer, Shanghai and the rest, all scored for you</li>
+      <li><b>Up to six players</b>Honours, lives and turn order handled in every game</li>
+      <li><b>The full show</b>Celebrations for the big moments, roasts for the bad ones</li>
+      <li><b>Every result kept</b>A running record of who actually wins</li>
     </ul>
-    <div class="plans" id="plans"></div>
+    <div class="plans" id="plans" role="radiogroup" aria-label="Plan"></div>
+    <button type="button" class="cta" id="payBuy">Continue</button>
     <p class="note" id="payNote" aria-live="polite"></p>
-    <p class="fine">Monthly and yearly plans renew at the price shown until you cancel. Lifetime is a single payment. Payment is charged to your Apple Account. Cancel at least 24 hours before the renewal date in your App Store account settings. 301 and 501 stay free.</p>
-    <div class="links"><button type="button" class="btn" id="payRestore">Restore purchases</button></div>
-    <div class="links" id="payLinks"></div>
+    <div class="links center"><button type="button" class="link" id="payRestore">Restore purchases</button><span id="payLinks"></span></div>
+    <p class="fine">Monthly and yearly plans renew at the price shown until you cancel. Lifetime is a single payment. Payment is charged to your Apple Account. Cancel at least 24 hours before the renewal date in your App Store account settings. 301, 501 and Count-Up stay free.</p>
   </div>
 </div>
 

@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const { chromium } = require('playwright');
 
-const BG = '#121a17', GREEN = '#3fae7c', CHALK = '#eef2ee', RED = '#ef6a55';
+const BG = '#070B16', GREEN = '#2F7BFF', CHALK = '#F5F7FF', RED = '#17D387';   // ring colours: blue and green on the app's navy
 function board(size) {
   const c = size / 2, wedge = [];
   const ring = (r1, r2, i, fill) => {
@@ -14,9 +14,9 @@ function board(size) {
   const R = size * 0.41;
   for (let i = 0; i < 20; i++) {
     wedge.push(ring(R, R * 0.86, i, i % 2 ? GREEN : RED));           // doubles ring
-    wedge.push(ring(R * 0.86, R * 0.56, i, i % 2 ? CHALK : '#22302b')); // outer singles
+    wedge.push(ring(R * 0.86, R * 0.56, i, i % 2 ? CHALK : '#182241')); // outer singles
     wedge.push(ring(R * 0.56, R * 0.46, i, i % 2 ? GREEN : RED));    // trebles ring
-    wedge.push(ring(R * 0.46, R * 0.2, i, i % 2 ? CHALK : '#22302b'));  // inner singles
+    wedge.push(ring(R * 0.46, R * 0.2, i, i % 2 ? CHALK : '#182241'));  // inner singles
   }
   return wedge.join('') + `<circle cx="${c}" cy="${c}" r="${R * 0.2}" fill="${GREEN}"/><circle cx="${c}" cy="${c}" r="${R * 0.09}" fill="${RED}"/>`;
 }

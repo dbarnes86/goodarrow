@@ -1,8 +1,8 @@
 {
-  "appId": "com.ludis.goodarrows",
+  "appId": "com.ludis.goodarrow",
   "appName": "Good Arrows",
   "webDir": "www",
-  "backgroundColor": "#121a17",
+  "backgroundColor": "#070B16",
   "ios": {
     "contentInset": "never",
     "allowsLinkPreview": false

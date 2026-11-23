@@ -1,60 +1,104 @@
-/* UI. Holds the app state, wires the controls and renders. Game rules live in engine.js. */
+/* UI. Holds the app state, wires the controls and renders. Game rules live in engine.js.
+   Two screens: the lobby (players, games, results) and a game in play. Sheets slide over either. */
 (function () {
   'use strict';
   var E = window.Engine, C = window.APP_CONFIG, Pro = window.Pro, Store = window.Store;
   var $ = function (id) { return document.getElementById(id); };
   var cap = window.Capacitor;
   var haptics = cap && cap.isNativePlatform && cap.isNativePlatform() && cap.registerPlugin ? cap.registerPlugin('Haptics') : null;
+  var reduced = window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+  var COLORS = ['#2F7BFF', '#17D387', '#FFC53D', '#FF5C8A', '#9B7BFF', '#2FD6E3'];
+  var MAXP = 6;
+  var ICON = {
+    x01: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/>',
+    countup: '<path d="M5 19v-4M10 19v-8M15 19V8M20 19V4"/>',
+    golf: '<path d="M8 21V3.5l10 4L8 11.5"/><path d="M4 21h10"/>',
+    cricket: '<path d="M3.5 16.5l3.5-9"/><path d="M10 7.5l5 9M15 7.5l-5 9"/><circle cx="19.2" cy="12" r="2.8"/>',
+    killer: '<circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/>',
+    atc: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2.2"/>',
+    shanghai: '<path d="M5 19l7-4.5 7 4.5M5 13.5L12 9l7 4.5M5 8l7-4.5L19 8"/>',
+    halve: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor" stroke="none"/>',
+    bobs: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5.6"/><path d="M12 3v3.4M12 17.6V21"/>',
+    baseball: '<path d="M12 3l9 9-9 9-9-9z"/><path d="M12 8.5l3.5 3.5-3.5 3.5L8.5 12z"/>',
+    knockout: '<path d="M12 20.5S4.5 16 4.5 9.8A4.1 4.1 0 0 1 12 7.6a4.1 4.1 0 0 1 7.5 2.2c0 6.2-7.5 10.7-7.5 10.7z"/>',
+    gotcha: '<path d="M13.5 2.5L5 14h6l-1.5 7.5L18 10h-6z"/>'
+  };
 
   var S = null;            // persisted state
-  var mod = 1;             // X01 multiplier in hand: 1 single, 2 double, 3 treble
+  var mod = 1;             // multiplier in hand on the full pad: 1 single, 2 double, 3 treble
   var edit = null;         // golf cell being corrected: {p, k}
-  var hold = false;        // golf result held back while the ending plays
-  var armed = '';          // which two-tap confirmation is primed
-  var armTimer = 0;
+  var hold = false;        // result held back while the ending plays
+  var armed = '', armTimer = 0;
+  var su = null;           // game being set up: {id, first}
+  var plIndex = -1;        // player being edited
+  var want = null;         // game the paywall was opened for
+  var plan = null;         // plan selected on the paywall
+  var padSig = '', padBtns = [], prevMain = {}, lastSlots = 0, toastTimer = 0;
 
   function fresh() {
-    var now = Date.now();
-    return {
-      v: 1, names: ['Player 1', 'Player 2'], game: 'x01',
-      set: { start: 301, dblOut: true, holes: 18, roast: true },
-      x01: E.newX01({ start: 301, dblOut: true, id: now }),
-      golf: E.newGolf({ holes: 18, id: now + 1 }),
-      ux: [], ug: [], hist: []
-    };
+    return { v: 2, players: ['Player 1', 'Player 2'], screen: 'lobby', match: null, hist: [],
+      set: { roast: true, haptic: true, x01: { start: 301, dblOut: true }, golf: { holes: 18 } } };
   }
   function adopt(saved) {
     var f = fresh();
-    if (!saved || saved.v !== 1 || !saved.x01 || !saved.golf) return f;
+    if (!saved) return f;
+    if (saved.v === 1 && saved.names) { f.players = saved.names.slice(0, MAXP); return f; }   // pre-release two-player builds
+    if (saved.v !== 2 || !saved.players || !saved.players.length) return f;
     Object.keys(f).forEach(function (k) { if (saved[k] === undefined) saved[k] = f[k]; });
     Object.keys(f.set).forEach(function (k) { if (saved.set[k] === undefined) saved.set[k] = f.set[k]; });
+    if (saved.match && !E.game(saved.match.game)) saved.match = null;
     return saved;
   }
 
+  /* ---------- small helpers ---------- */
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  function nm(p) { return esc(S.names[p]); }
-  /** Golf is the paid game: a lapsed subscriber falls back to the free one without losing their round. */
-  function isGolf() { return S.game === 'golf' && Pro.state.active; }
+  /** Fill {0}, {1}... in engine text with player names. */
+  function tok(str, names) { return String(str || '').replace(/\{(\d+)\}/g, function (_, i) { return names[+i] || 'Player ' + (+i + 1); }); }
+  function icon(id) { return '<svg viewBox="0 0 24 24" aria-hidden="true">' + (ICON[id] || ICON.x01) + '</svg>'; }
   function cls(v) { return v < 0 ? (v < -1 ? ' neg neg2' : ' neg') : (v > 0 ? (v > 1 ? ' pos pos2' : ' pos') : ''); }
   function press(el, on) { el.setAttribute('aria-pressed', on ? 'true' : 'false'); }
-  function tap(style) { if (haptics) try { haptics.impact({ style: style || 'LIGHT' }).catch(function () {}); } catch (e) {} }
-  function buzz(type) { if (haptics) try { haptics.notification({ type: type }).catch(function () {}); } catch (e) {} }
+  function tap(style) { if (haptics && S.set.haptic) try { haptics.impact({ style: style || 'LIGHT' }).catch(function () {}); } catch (e) {} }
+  function buzz(type) { if (haptics && S.set.haptic) try { haptics.notification({ type: type }).catch(function () {}); } catch (e) {} }
+  function locked(g) { return g.pro && !Pro.state.active; }
+  function toast(msg) {
+    var t = $('toast'); t.textContent = msg; t.hidden = true; void t.offsetWidth; t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, 2600);
+  }
+  function arm(what, redraw) {
+    armed = what; clearTimeout(armTimer);
+    armTimer = setTimeout(function () { armed = ''; redraw(); }, 3000);
+    redraw();
+  }
+  /** A dartboard drawn from wedges; used for the brand mark and the paywall art. */
+  function boardArt(colors) {
+    var c = 50, R = 48, out = '', i;
+    function ring(r1, r2, k, fill) {
+      var a0 = (k * 18 - 99) * Math.PI / 180, a1 = (k * 18 - 81) * Math.PI / 180;
+      function pt(r, a) { return (c + r * Math.cos(a)).toFixed(2) + ' ' + (c + r * Math.sin(a)).toFixed(2); }
+      return '<path d="M' + pt(r1, a0) + 'A' + r1 + ' ' + r1 + ' 0 0 1 ' + pt(r1, a1) + 'L' + pt(r2, a1) + 'A' + r2 + ' ' + r2 + ' 0 0 0 ' + pt(r2, a0) + 'Z" fill="' + fill + '"/>';
+    }
+    for (i = 0; i < 20; i++) {
+      out += ring(R, R * .86, i, i % 2 ? colors[0] : colors[1]) + ring(R * .86, R * .56, i, i % 2 ? colors[2] : colors[3]) +
+        ring(R * .56, R * .46, i, i % 2 ? colors[0] : colors[1]) + ring(R * .46, R * .2, i, i % 2 ? colors[2] : colors[3]);
+    }
+    return '<svg viewBox="0 0 100 100" aria-hidden="true">' + out + '<circle cx="50" cy="50" r="' + R * .2 + '" fill="' + colors[0] + '"/><circle cx="50" cy="50" r="' + R * .09 + '" fill="' + colors[1] + '"/></svg>';
+  }
 
-  /* ---------- scoreboard of finished games ---------- */
+  /* ---------- results kept over time ---------- */
   function syncHist() {
-    var x = S.x01, g = S.golf;
-    if (!x.id) x.id = Date.now();
-    if (!g.id) g.id = Date.now() + 1;
-    S.hist = S.hist.filter(function (h) { return h.id !== x.id && h.id !== g.id; });
-    if (g.done && !g.noHist) S.hist.push({ id: g.id, game: 'golf', a: E.sum(g.sc[0]), b: E.sum(g.sc[1]), holes: g.holes });
-    if (x.winner >= 0 && !x.noHist) S.hist.push({ id: x.id, game: 'x01', start: x.start, w: x.winner, darts: x.darts[x.winner] });
-    S.hist.sort(function (p, q) { return q.id - p.id; });
-    if (S.hist.length > 300) S.hist.length = 300;
+    var M = S.match; if (!M) return;
+    S.hist = S.hist.filter(function (h) { return h.id !== M.s.id; });
+    if (M.s.done && !M.noHist) {
+      var v = E.view(M.s);
+      S.hist.push({ id: M.s.id, t: M.endT || (M.endT = Date.now()), game: M.game, title: v.title, names: M.names, winner: M.s.winner, mains: v.rows.map(function (r) { return r.main; }) });
+    }
+    S.hist.sort(function (a, b) { return b.t - a.t; });
+    if (S.hist.length > 200) S.hist.length = 200;
   }
   function save() {
     syncHist();
-    if (S.ux.length > 60) S.ux = S.ux.slice(-60);
-    if (S.ug.length > 80) S.ug = S.ug.slice(-80);
+    if (S.match && S.match.undo.length > 90) S.match.undo = S.match.undo.slice(-90);
     Store.save(S);
   }
 
@@ -62,13 +106,6 @@
   /* Banners queue within one action (score, then hole change) but a newer action pre-empts older
      banners, so fast scoring never leaves the animations trailing behind the game. */
   var fxq = [], fxbusy = false, fxCur = null, fxTimer = 0, batch = 0, lastRoast = -1;
-  function act() { batch++; }
-  function fxClear() {
-    batch++;
-    fxq.forEach(function (q) { if (q.cb) q.cb(); });
-    fxq = [];
-    if (fxbusy) { clearTimeout(fxTimer); fxnext(); }
-  }
   var roasts = [
     '{n}, the number is the bit you are meant to hit.',
     'Three darts and that is the one you kept?',
@@ -79,10 +116,18 @@
     'That one was closer to the bar than the board.',
     '{o} did not even have to try there.'
   ];
-  function roast(p) {
-    var i; do { i = Math.floor(Math.random() * roasts.length); } while (i === lastRoast);
+  function roast(p, names) {
+    var pool = names.length > 1 ? roasts : roasts.filter(function (r) { return r.indexOf('{o}') < 0; }), i;
+    do { i = Math.floor(Math.random() * pool.length); } while (pool.length > 1 && i === lastRoast);
     lastRoast = i;
-    return roasts[i].replace('{n}', S.names[p]).replace('{o}', S.names[1 - p]);
+    var others = names.filter(function (_, k) { return k !== p; });
+    return pool[i].replace('{n}', names[p]).replace('{o}', others[Math.floor(Math.random() * others.length)] || '');
+  }
+  function fxClear() {
+    batch++;
+    fxq.forEach(function (q) { if (q.cb) q.cb(); });
+    fxq = [];
+    if (fxbusy) { clearTimeout(fxTimer); fxnext(); }
   }
   /** Queue a banner. kind: good | bad | info | win. m is the size of the moment, 1 to 4. */
   function flash(text, kind, m, sub, dur, cb) {
@@ -117,14 +162,14 @@
     void f.offsetWidth; f.hidden = false;
     if (it.cb) it.cb();
     if (it.k === 'win') { party(d + 600); buzz('SUCCESS'); }
+    else if (bad && it.m >= 2) buzz('WARNING');
     fxTimer = setTimeout(fxnext, d);
   }
   function party(ms) {
     var c = $('cv');
-    if (!c.getContext || (window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches)) return;
+    if (!c.getContext || reduced) return;
     var x = c.getContext('2d'), W = c.width = window.innerWidth, H = c.height = window.innerHeight;
-    var cs = getComputedStyle(document.documentElement);
-    var cols = ['--green', '--red', '--gold', '--ink'].map(function (v) { return cs.getPropertyValue(v).trim() || '#1d6f4c'; }).concat(['#4a90d9']);
+    var cols = ['#17D387', '#2F7BFF', '#FFC53D', '#F5F7FF', '#FF5C8A'];
     var P = [], t0 = performance.now();
     function burst(cx, cy, n) {
       for (var i = 0; i < n; i++) {
@@ -148,350 +193,428 @@
       else { x.clearRect(0, 0, W, H); c.hidden = true; }
     })(t0);
   }
-
-  /* ---------- X01 actions ---------- */
-  function throwDart(n, m) {
-    var x = S.x01; if (x.winner >= 0) return;
-    act(); S.ux.push(JSON.stringify(x));
-    var ev = E.x01Throw(x, n, m); mod = 1;
-    if (!ev) { S.ux.pop(); return; }
-    tap(ev.type === 'bust' ? 'HEAVY' : 'LIGHT');
-    if (ev.type === 'bust') flash('Bust', 'bad', 2, S.names[ev.player] + ' stays on ' + x.score[ev.player]);
-    else if (ev.type === 'turn' && ev.scored >= 100) flash(ev.scored + '!', 'good', ev.scored >= 180 ? 4 : (ev.scored >= 140 ? 3 : 2), S.names[ev.player]);
-    else if (ev.type === 'win') flash(S.names[ev.player] + ' wins', 'win', 4, 'Leg out in ' + ev.darts + ' darts', 4200);
-    save(); render();
-  }
-  function undoX() { if (!S.ux.length) return; fxClear(); S.x01 = JSON.parse(S.ux.pop()); mod = 1; save(); render(); }
-  function nextLeg() {
-    S.ux.push(JSON.stringify(S.x01));
-    S.x01 = E.x01Next(S.x01, { start: S.set.start, dblOut: S.set.dblOut, id: Date.now() });
-    save(); render();
-  }
-
-  /* ---------- golf actions ---------- */
-  var GOOD = ['Birdie', 'Eagle', 'Albatross', 'Condor'], BAD = ['Bogey', 'Double bogey', 'Triple bogey'];
-  function golfEvents(evs) {
-    evs.forEach(function (ev) {
-      var who;
-      if (ev.type === 'score') {
-        who = S.names[ev.player];
-        if (ev.score < 0) flash(GOOD[Math.min(-ev.score, 4) - 1], 'good', Math.min(-ev.score, 4), who + ' ' + E.fmt(ev.score));
-        else if (ev.score === 2 && S.set.roast) flash('Double bogey', 'bad', 2, roast(ev.player), 3800);
-        else if (ev.score > 0) flash(BAD[Math.min(ev.score, 3) - 1], 'bad', Math.min(ev.score, 3), who + ' ' + E.fmt(ev.score));
-      } else if (ev.type === 'hole') {
-        flash(ev.lead < 0 ? 'All square' : S.names[ev.lead] + (ev.lead !== ev.prevLead ? ' takes the lead' : ' leads by ' + ev.margin),
-          'info', 2, S.names[ev.first] + ' to shoot first on hole ' + ev.hole, 2600);
-      } else if (ev.type === 'done') {
-        hold = true;
-        var reveal = function () { hold = false; render(); };
-        var line = S.names[0] + ' ' + E.fmt(ev.a) + ' · ' + S.names[1] + ' ' + E.fmt(ev.b);
+  /** Turn the engine's events into banners. Games decided on totals get a drum roll before the reveal. */
+  function showEvents(evs, M) {
+    evs.forEach(function (e) {
+      var names = M.names, sub = tok(e.s, names), dur = 0, cb = null;
+      if (e.drum) {
+        hold = true; cb = function () { hold = false; render(); };
         flash('And the winner is…', 'info', 2, '', 1600);
-        if (ev.winner < 0) flash('All square', 'info', 2, line + '. Play another to settle it.', 3600, reveal);
-        else flash(S.names[ev.winner] + ' wins', 'win', 4, 'By ' + ev.margin + ' · ' + line, 4800, reveal);
       }
+      if (e.k === 'win') { M.note = sub; dur = 4600; } else if (e.tie) { M.note = sub; dur = 3600; }
+      if (e.golf === 2 && S.set.roast) { sub = roast(e.p, names); dur = 3800; }
+      flash(tok(e.t, names), e.k, e.m, sub, dur, cb);
     });
   }
-  function gSnap() { S.ug.push(JSON.stringify(S.golf)); }
-  function gUndo() { if (!S.ug.length) return; fxClear(); S.golf = JSON.parse(S.ug.pop()); edit = null; save(); render(); }
-  function gScore(score) {
-    var g = S.golf;
-    if (edit) {
-      var e = edit; edit = null; gSnap();
-      if (!E.golfEdit(g, e.p, e.k, score)) S.ug.pop();
-      tap(); save(); render(); return;
-    }
-    if (g.done) return;
-    act(); gSnap(); tap(); golfEvents(E.golfDart(g, score)); save(); render();
+
+  /* ---------- playing ---------- */
+  function startGame(id, first) {
+    var opts = { id: Date.now(), first: first || 0 };
+    if (id === 'x01') { opts.start = S.set.x01.start; opts.dblOut = S.set.x01.dblOut; }
+    if (id === 'golf') opts.holes = S.set.golf.holes;
+    fxClear();
+    S.match = { game: id, names: S.players.slice(), s: E.create(id, S.players.length, opts), undo: [], note: '' };
+    S.screen = 'game'; mod = 1; edit = null; hold = false; padSig = ''; prevMain = {}; lastSlots = 0;
+    save(); render(); window.scrollTo(0, 0);
   }
-  function gKeep() {
+  function input(d) {
+    var M = S.match; if (!M || M.s.done || hold) return;
+    batch++;
+    M.undo.push(JSON.stringify(M.s));
+    var before = M.s.active, ev = E.dart(M.s, d); mod = 1;
+    tap(M.s.active !== before ? 'MEDIUM' : 'LIGHT');
+    showEvents(ev, M); save(); render();
+  }
+  function keepDart() {
+    var M = S.match; if (!M) return;
     if (edit) { edit = null; render(); return; }
-    var g = S.golf; if (g.done || g.pend == null) return;
-    act(); gSnap(); tap('MEDIUM'); golfEvents(E.golfKeep(g)); save(); render();
+    if (M.s.done || M.s.pend == null) return;
+    batch++; M.undo.push(JSON.stringify(M.s)); tap('MEDIUM');
+    showEvents(E.keep(M.s), M); save(); render();
   }
-  function newRound() {
-    S.golf = E.newGolf({ holes: S.set.holes, starter: S.golf.starter, id: Date.now() });
-    fxClear(); S.ug = []; edit = null; hold = false;
+  function undo() {
+    var M = S.match; if (!M || !M.undo.length) return;
+    fxClear(); M.s = JSON.parse(M.undo.pop()); M.endT = 0; mod = 1; edit = null; hold = false; tap();
+    save(); render();
   }
-
-  /* ---------- render ---------- */
-  function renderX() {
-    var x = S.x01, p = x.active;
-    $('info').textContent = 'Leg ' + x.leg + ' · ' + S.names[x.starter] + ' threw first';
-    $('players').innerHTML = [0, 1].map(function (i) {
-      var avg = E.x01Avg(x, i);
-      return '<div class="player' + (i === x.active && x.winner < 0 ? ' on' : '') + '">' +
-        '<div class="row"><span class="name">' + nm(i) + '</span><span class="tag">Throwing</span></div>' +
-        '<div class="score">' + x.score[i] + '</div>' +
-        '<div class="meta">Legs ' + x.legs[i] + ' · Avg ' + (avg == null ? '–' : avg.toFixed(1)) + '</div>' +
-        '<div class="meta">' + (esc(x.last[i]) || '&nbsp;') + '</div></div>';
-    }).join('');
-    var s = '', tot = 0, k, d;
-    for (k = 0; k < 3; k++) { d = x.turn[k]; if (d) tot += d.v; s += '<div class="slot' + (d ? ' hit' : '') + '">' + (d ? E.dartLabel(d) : '') + '</div>'; }
-    $('slots').innerHTML = s + '<div class="total"><small>Turn</small><b>' + tot + '</b></div>';
-
-    var hint = $('hint'); hint.className = 'hint';
-    if (x.winner < 0) {
-      var left = 3 - x.turn.length, c = E.checkout(x.score[p], left, x.dblOut), out = c ? nm(p) + ' can go out: <b>' + c.join(' · ') + '</b>' : '';
-      if (x.bust >= 0 && !x.turn.length) { hint.className = 'hint bust'; hint.innerHTML = '<b>Bust.</b> ' + nm(x.bust) + ' stays on ' + x.score[x.bust] + '. ' + out; }
-      else if (c) hint.innerHTML = out;
-      else if (x.score[p] <= 170) hint.textContent = 'No finish with ' + left + ' dart' + (left > 1 ? 's' : '') + ' left.';
-      else hint.textContent = S.names[p] + ' to throw. ' + (x.score[p] - 170) + ' more to reach a finish.';
-    } else hint.textContent = '';
-
-    [1, 2, 3].forEach(function (m) { press($('mod' + m), mod === m); });
-    $('k25').disabled = $('kbull').disabled = $('kmiss').disabled = mod !== 1;
-    $('kundo').disabled = !S.ux.length;
-    var w = $('win');
-    if (x.winner >= 0) {
-      w.hidden = false; $('pad').hidden = true;
-      w.innerHTML = '<h2>' + nm(x.winner) + ' takes the leg</h2><p>Out in ' + x.darts[x.winner] + ' darts. Legs: ' + nm(0) + ' ' + x.legs[0] + ', ' + nm(1) + ' ' + x.legs[1] + '.</p>' +
-        '<div class="btns"><button type="button" data-a="next">Next leg</button><button type="button" class="ghost" data-a="undo">Undo last dart</button></div>';
-    } else { w.hidden = true; $('pad').hidden = false; }
+  function again() {
+    var M = S.match; if (!M) return;
+    fxClear();
+    S.match = { game: M.game, names: M.names, s: E.rematch(M.s, Date.now()), undo: [], note: '' };
+    mod = 1; edit = null; hold = false; prevMain = {}; lastSlots = 0;
+    save(); render(); window.scrollTo(0, 0);
   }
+  function endGame() {
+    fxClear(); S.match = null; S.screen = 'lobby'; edit = null; hold = false; armed = '';
+    save(); render(); window.scrollTo(0, 0);
+  }
+  function go(screen) { S.screen = screen; armed = ''; save(); render(); window.scrollTo(0, 0); }
 
-  function renderG() {
-    var g = S.golf, ld = E.golfLead(g), live = !g.done, k, p, v, ed;
-    $('info').textContent = g.done ? 'Round finished' : 'Hole ' + g.hole + ' of ' + g.holes;
-    var t = '<table><tr><th>Hole</th>';
-    for (k = 1; k <= g.holes; k++) t += '<th' + (k === g.hole && live ? ' class="hc"' : '') + '>' + k + '</th>';
-    t += '</tr>';
-    for (p = 0; p < 2; p++) {
-      var tot = E.sum(g.sc[p]);
-      t += '<tr' + (p === g.active && live ? ' class="on"' : '') + '><td><span class="nm">' + nm(p) + '</span><span class="tot' + cls(tot) + (ld.who === p ? ' top' : '') + '">' + E.fmt(tot) + '</span></td>';
-      for (k = 1; k <= g.holes; k++) {
-        v = g.sc[p][k - 1]; ed = edit && edit.p === p && edit.k === k;
-        t += '<td' + (v != null ? ' data-p="' + p + '" data-k="' + k + '"' : '') + ' class="' +
-          (ed ? 'edit' : (k === g.hole && p === g.active && live ? 'cur' : '') + cls(v)) + (v != null ? ' can' : '') + (k === g.hole && live ? ' hc' : '') + '">' + E.fmt(v) + '</td>';
-      }
-      t += '</tr>';
+  /* ---------- lobby ---------- */
+  function renderLobby() {
+    var M = S.match, n = S.players.length, live = M && !M.s.done && !E.fresh(M.s);   // nothing to resume until a dart is thrown
+    $('mark').innerHTML = boardArt(['#2F7BFF', '#17D387', '#F5F7FF', '#182241']);
+    var r = $('resume');
+    r.hidden = !live;
+    if (live) {
+      var v = E.view(M.s);
+      r.innerHTML = '<div class="txt"><small>In progress</small><b>' + esc(v.title) + '</b><span>' + esc(v.info) + ' · ' + esc(M.names.join(', ')) + '</span></div>' +
+        '<button type="button" class="end' + (armed === 'end' ? ' armed' : '') + '" data-a="end">' + (armed === 'end' ? 'Sure?' : 'End') + '</button>' +
+        '<button type="button" class="go" data-a="resume">Resume</button>';
     }
-    var card = $('gcard'); card.innerHTML = t + '</table>';
-    var hc = card.querySelector('th.hc');
-    if (hc && !edit) card.scrollLeft = hc.offsetLeft - (card.clientWidth + 100) / 2;
-
-    $('glead').innerHTML = (g.done && hold) ? 'Round complete<small>Totting up the card</small>' :
-      (ld.n ? (ld.who < 0 ? 'All square' : nm(ld.who) + (g.done ? ' wins by ' : ' leads by ') + ld.margin) : 'Level at the start') +
-      '<small>' + (ld.n ? 'After ' + ld.n + ' hole' + (ld.n > 1 ? 's' : '') + ' · ' + nm(0) + ' ' + E.fmt(ld.a) + ' · ' + nm(1) + ' ' + E.fmt(ld.b) : 'Lowest total wins') + '</small>';
-
-    $('ghint').innerHTML = edit ? 'Editing ' + nm(edit.p) + ', hole <b>' + edit.k + '</b>. Tap the right score, or cancel.' :
-      g.done ? 'Tap any score on the card to correct it.' :
-      nm(g.active) + ' on hole ' + g.hole + '. Aim at the <b>' + g.hole + '</b>. Dart ' + (g.dart + 1) + ' of 3.' +
-      (g.pend != null ? ' Last dart: <b>' + E.fmt(g.pend) + '</b>. Keep it or throw again.' : '');
-    var keep = $('gkeep');
-    keep.disabled = !edit && g.pend == null;
-    keep.textContent = edit ? 'Cancel edit' : (g.pend == null ? 'Keep' : 'Keep ' + E.fmt(g.pend));
-    $('gundo').disabled = !S.ug.length;
-
-    var w = $('gwin');
-    if (g.done) {
-      w.hidden = hold; $('gkeys').hidden = !edit;
-      w.innerHTML = '<h2>' + (ld.who < 0 ? 'All square' : nm(ld.who) + ' wins by ' + ld.margin) + '</h2><p>' + nm(0) + ' ' + E.fmt(ld.a) + ', ' + nm(1) + ' ' + E.fmt(ld.b) + ' over ' + g.holes + ' holes. Lowest score wins.</p>' +
-        '<div class="btns"><button type="button" data-a="new">New round</button><button type="button" class="ghost" data-a="undo">Undo last dart</button></div>';
-    } else { w.hidden = true; $('gkeys').hidden = false; }
+    $('playerCount').textContent = n + ' of ' + MAXP;
+    $('players').innerHTML = S.players.map(function (name, i) {
+      return '<button type="button" class="chip" data-p="' + i + '" style="--pc:' + COLORS[i] + '"><span class="av">' + esc(name.charAt(0).toUpperCase()) + '</span><span>' + esc(name) + '</span></button>';
+    }).join('') + (n < MAXP ? '<button type="button" class="chip add" data-p="add">+ Add player</button>' : '');
+    $('gameCount').textContent = E.GAMES.length + ' games';
+    $('games').innerHTML = E.GAMES.map(function (g) {
+      var lk = locked(g), title = g.id === 'x01' ? '' + S.set.x01.start : g.name;
+      return '<button type="button" class="gcard' + (lk ? ' locked' : '') + '" data-g="' + g.id + '"><span class="gicon">' + icon(g.id) + '</span><b>' + esc(title) + '</b><p>' + esc(g.blurb) + '</p>' +
+        '<span class="meta"><span>' + (g.min === g.max ? g.min : g.min + '–' + g.max) + ' players</span>' + (lk ? '<span class="pill gold">Pro</span>' : (g.pro ? '' : '<span class="pill free">Free</span>')) + '</span></button>';
+    }).join('');
+    renderHist();
   }
-
-  function renderHist(golf) {
-    var rows = S.hist.filter(function (h) { return h.game === (golf ? 'golf' : 'x01'); }), w = [0, 0, 0], h = '<h2>Scoreboard</h2>';
-    rows.forEach(function (r) { if (golf) w[r.a < r.b ? 0 : (r.b < r.a ? 1 : 2)]++; else w[r.w]++; });
-    if (!rows.length) h += '<p>Finished ' + (golf ? 'rounds' : 'legs') + ' are listed here, newest first.</p>';
-    else h += '<div class="tally"><span>' + nm(0) + '<b>' + w[0] + '</b></span><span>' + nm(1) + '<b>' + w[1] + '</b></span>' + (w[2] ? '<span>Level<b>' + w[2] + '</b></span>' : '') + '</div><ul>' +
-      rows.slice(0, 30).map(function (r) {
-        var d = new Date(r.id), ds = d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ', ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-        return golf ? '<li><span>' + ds + ' · ' + r.holes + ' holes</span><span>' + nm(0) + ' <b class="' + cls(r.a) + '">' + E.fmt(r.a) + '</b> · ' + nm(1) + ' <b class="' + cls(r.b) + '">' + E.fmt(r.b) + '</b></span></li>'
-          : '<li><span>' + ds + ' · ' + (r.start || 301) + '</span><span><b>' + nm(r.w) + '</b> out in ' + r.darts + ' darts</span></li>';
+  function renderHist() {
+    var rows = S.hist, wins = {}, order = [], h = '<div class="head"><h2>Results</h2><span>' + (rows.length ? rows.length + ' played' : '') + '</span></div>';
+    rows.forEach(function (r) { if (r.winner >= 0) { var w = r.names[r.winner]; if (!(w in wins)) { wins[w] = 0; order.push(w); } wins[w]++; } });
+    order.sort(function (a, b) { return wins[b] - wins[a]; });
+    if (!rows.length) h += '<p class="empty">Finished games are kept here, newest first.</p>';
+    else h += '<div class="tally">' + order.slice(0, 6).map(function (w) { return '<span>' + esc(w) + '<b>' + wins[w] + '</b></span>'; }).join('') + '</div><ul class="results">' +
+      rows.slice(0, 25).map(function (r) {
+        var d = new Date(r.t), ds = d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ', ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        var line = r.names.map(function (nm, i) { return nm + ' ' + r.mains[i]; }).join(' · ');
+        return '<li><div class="g"><b>' + esc(r.title) + '</b><small>' + ds + '</small></div><div class="w"><b>' + (r.winner >= 0 ? esc(r.names[r.winner]) : 'Level') + '</b>' + esc(line) + '</div></li>';
       }).join('') + '</ul>';
     $('hist').innerHTML = h;
   }
 
+  /* ---------- a game in play ---------- */
+  function tween(el, from, to) {
+    var t0 = performance.now(), dur = 380, sign = el.dataset.sign === '1';
+    (function step(now) {
+      var k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3), v = Math.round(from + (to - from) * e);
+      el.textContent = sign ? E.fmt(v) : '' + v;
+      if (k < 1) requestAnimationFrame(step);
+    })(t0);
+  }
+  function renderCards(M, v) {
+    var s = M.s, n = s.n, box = $('cards');
+    box.className = 'cards n' + n; box.style.setProperty('--cols', n === 1 ? 1 : (n === 2 || n === 4 ? 2 : 3));
+    box.innerHTML = v.rows.map(function (r, p) {
+      var lives = '';
+      if (r.lives !== undefined && !r.out) { for (var k = 0; k < 3; k++) lives += '<i' + (k < r.lives ? '' : ' class="off"') + '></i>'; lives = '<div class="lives">' + lives + '</div>'; }
+      return '<div class="pc' + (p === s.active && !s.done ? ' on' : '') + (r.out ? ' out' : '') + (s.done && s.winner === p ? ' on' : '') + '" style="--pc:' + COLORS[p] + '">' +
+        '<div class="pn"><i></i><span>' + esc(M.names[p]) + '</span></div>' +
+        '<div class="pm' + (r.sign !== undefined ? cls(r.sign) : '') + '" data-p="' + p + '"' + (r.sign !== undefined ? ' data-sign="1"' : '') + '>' + esc(r.main) + '</div>' +
+        '<div class="ps' + (r.tag ? ' hot' : '') + '">' + esc(r.sub || '') + '</div>' + lives + (r.note !== undefined && n <= 2 ? '<div class="pnote">' + (esc(r.note) || '&nbsp;') + '</div>' : '') + '</div>';
+    }).join('');
+    // Count the number to its new value rather than swapping it.
+    Array.prototype.forEach.call(box.querySelectorAll('.pm'), function (el) {
+      var p = el.dataset.p, now = parseInt(el.textContent, 10), was = prevMain[p];
+      if (!reduced && was !== undefined && !isNaN(now) && String(now) === el.textContent.replace('+', '') && was !== now) tween(el, was, now);
+      prevMain[p] = isNaN(now) || String(now) !== el.textContent.replace('+', '') ? undefined : now;
+    });
+  }
+  function renderGolf(M, v) {
+    var s = M.s, b = v.board, live = !s.done, k, p, x, ed, t = '<table><tr><th>Hole</th>';
+    for (k = 1; k <= b.holes; k++) t += '<th' + (k === b.hole && live ? ' class="hc"' : '') + '>' + k + '</th>';
+    t += '</tr>';
+    for (p = 0; p < s.n; p++) {
+      var tot = E.sum(b.sc[p]);
+      t += '<tr' + (p === s.active && live ? ' class="on"' : '') + '><td><span class="nm">' + esc(M.names[p]) + '</span><span class="tot' + cls(tot) + (b.lead.who === p && s.n > 1 ? ' top' : '') + '">' + E.fmt(tot) + '</span></td>';
+      for (k = 1; k <= b.holes; k++) {
+        x = b.sc[p][k - 1]; ed = edit && edit.p === p && edit.k === k;
+        t += '<td' + (x != null ? ' data-p="' + p + '" data-k="' + k + '"' : '') + ' class="' + (ed ? 'edit' : (k === b.hole && p === s.active && live ? 'cur' : '') + cls(x)) + (x != null ? ' can' : '') + (k === b.hole && live ? ' hc' : '') + '">' + E.fmt(x) + '</td>';
+      }
+      t += '</tr>';
+    }
+    var card = $('board'); card.className = 'card'; card.innerHTML = t + '</table>';
+    var hc = card.querySelector('th.hc');
+    if (hc && !edit) card.scrollLeft = hc.offsetLeft - (card.clientWidth + 100) / 2;
+    var ld = b.lead, lead = $('lead');
+    lead.hidden = false;
+    lead.innerHTML = (s.done && hold) ? 'Round complete<small>Totting up the card</small>' :
+      esc(tok(v.lead, M.names)) + '<small>' + (ld.n ? 'After ' + ld.n + ' hole' + (ld.n > 1 ? 's' : '') + ' · ' + M.names.map(function (nm, i) { return esc(nm) + ' ' + E.fmt(ld.tot[i]); }).join(' · ') : 'Lowest total wins') + '</small>';
+  }
+  var MARK = ['', '<svg viewBox="0 0 24 24"><path d="M6 19L18 5"/></svg>', '<svg viewBox="0 0 24 24"><path d="M6 19L18 5M6 5l12 14"/></svg>',
+    '<svg viewBox="0 0 24 24"><path d="M7.5 17L16.5 7M7.5 7l9 10"/><circle cx="12" cy="12" r="9.5"/></svg>'];
+  function renderCricket(M, v) {
+    var s = M.s, b = v.board, p, k, t = '<table><tr><th></th>';
+    for (p = 0; p < s.n; p++) t += '<th' + (p === s.active && !s.done ? ' class="on"' : '') + '>' + esc(M.names[p]) + '<b>' + esc(v.rows[p].main) + '</b></th>';
+    t += '</tr>';
+    for (k = 0; k < b.nums.length; k++) {
+      var shut = true; for (p = 0; p < s.n; p++) if (b.marks[p][k] < 3) shut = false;
+      t += '<tr' + (shut ? ' class="shut"' : '') + '><td class="no">' + (b.nums[k] === 25 ? 'Bull' : b.nums[k]) + '</td>';
+      for (p = 0; p < s.n; p++) t += '<td class="m' + b.marks[p][k] + (p === s.active && !s.done ? ' on' : '') + '">' + MARK[b.marks[p][k]] + '</td>';
+      t += '</tr>';
+    }
+    var el = $('board'); el.className = 'crk'; el.innerHTML = t + '</table>';
+  }
+  function renderPad(M, v) {
+    var s = M.s, pad = v.pad, el = $('pad'), h, i;
+    var sig = pad.type === 'full' ? 'full:' + (pad.nums || 'all') : 'btn:' + pad.cols + ':' + (pad.golf ? 'g:' : '') + pad.btns.map(function (b) { return b.l + '|' + b.s + '|' + b.c; }).join(',');
+    if (sig !== padSig) {
+      padSig = sig;
+      if (pad.type === 'full') {
+        var nums = pad.nums || Array.apply(null, { length: 20 }).map(function (_, k) { return k + 1; });
+        h = '<div class="mods"><button type="button" data-m="1">Single</button><button type="button" data-m="2">Double</button><button type="button" data-m="3">Treble</button></div>' +
+          '<div class="nums' + (pad.nums ? ' c3' : '') + '">' + nums.map(function (n) { return '<button type="button" class="key" data-n="' + n + '">' + n + '</button>'; }).join('') + '</div>' +
+          '<div class="extra"><button type="button" class="key" data-x="25">25</button><button type="button" class="key" data-x="bull">Bull</button><button type="button" class="key" data-x="miss">Miss</button><button type="button" class="key undo" data-a="undo">Undo</button></div>';
+      } else {
+        padBtns = pad.btns;
+        h = '<div class="btns' + (pad.btns.length > 4 && !pad.golf ? ' small' : '') + '" style="--cols:' + pad.cols + '">' + pad.btns.map(function (b, k) {
+          return '<button type="button" class="pb ' + b.c + '" data-b="' + k + '"><b>' + esc(b.l) + '</b><small>' + esc(tok(b.s, M.names)) + '</small></button>';
+        }).join('') + '</div><div class="padrow' + (pad.golf ? '' : ' one') + '">' + (pad.golf ? '<button type="button" class="keep" data-a="keep">Keep</button>' : '') + '<button type="button" class="undo" data-a="undo">Undo</button></div>';
+      }
+      el.innerHTML = h;
+    }
+    if (pad.type === 'full') {
+      var mods = el.querySelectorAll('[data-m]');
+      for (i = 0; i < mods.length; i++) press(mods[i], mod === +mods[i].dataset.m);
+      var ex = el.querySelectorAll('[data-x]');
+      for (i = 0; i < ex.length; i++) ex[i].disabled = mod !== 1;
+    } else { padBtns = pad.btns; }
+    var kp = el.querySelector('[data-a="keep"]');
+    if (kp) { kp.disabled = !edit && !pad.keep; kp.textContent = edit ? 'Cancel edit' : (pad.keep || 'Keep'); }
+    el.querySelector('[data-a="undo"]').disabled = !M.undo.length;
+  }
+  function renderResult(M, v) {
+    var s = M.s, el = $('result'), show = s.done && !hold;
+    el.hidden = !show; if (!show) return;
+    var tie = s.winner < 0, order = v.rows.map(function (_, i) { return i; });
+    el.className = 'result' + (tie ? ' tie' : '');
+    el.innerHTML = '<small>' + (tie ? 'Level' : 'Winner') + '</small><h2>' + (tie ? 'All square' : esc(M.names[s.winner])) + '</h2>' + (M.note ? '<p>' + esc(M.note) + '</p>' : '') +
+      '<ol class="standing">' + order.map(function (p) { return '<li' + (p === s.winner ? ' class="w"' : '') + '><span>' + esc(M.names[p]) + '</span><b>' + esc(v.rows[p].main) + '</b></li>'; }).join('') + '</ol>' +
+      '<div class="row"><button type="button" data-a="again">' + (M.game === 'x01' ? 'Next leg' : 'Play again') + '</button><button type="button" class="alt" data-a="lobby">All games</button></div>' +
+      '<button type="button" class="ghost" data-a="undo">Undo last dart</button>';
+  }
+  function renderGame() {
+    var M = S.match, s = M.s, v = E.view(s), names = M.names, board = v.board;
+    $('gTitle').textContent = v.title; $('gInfo').textContent = v.info;
+    $('lead').hidden = true;
+    $('cards').hidden = !!board; $('board').hidden = !board;
+    if (board && board.type === 'golf') renderGolf(M, v);
+    else if (board) renderCricket(M, v);
+    else renderCards(M, v);
+
+    var playing = !s.done || !!edit;
+    $('turn').hidden = !playing; $('pad').hidden = !playing;
+    $('turn').className = 'turn' + (v.target ? '' : ' notarget');
+    $('target').hidden = !v.target; $('targetV').textContent = v.target || '';
+    var slots = '', k;
+    for (k = 0; k < 3; k++) slots += '<div class="slot' + (v.slots[k] ? ' hit' : '') + (v.slots[k] && k === v.slots.length - 1 && v.slots.length > lastSlots ? ' new' : '') + '">' + esc(v.slots[k] || '') + '</div>';
+    lastSlots = v.slots.length;
+    $('slots').innerHTML = slots + (v.turnTotal == null ? '' : '<div class="total"><small>Turn</small><b>' + v.turnTotal + '</b></div>');
+    $('hint').textContent = edit ? 'Editing ' + names[edit.p] + ', hole ' + edit.k + '. Tap the right score, or cancel.' : tok(v.hint, names);
+    renderPad(M, v);
+    renderResult(M, v);
+  }
+
   function render() {
-    var golf = isGolf();
-    syncHist();
-    $('title').textContent = golf ? 'Golf' : String(S.x01.start);
-    $('tabX').textContent = String(S.x01.start);
-    press($('tabX'), !golf); press($('tabG'), golf);
-    $('lock').hidden = Pro.state.active;
-    $('vx').hidden = golf; $('vg').hidden = !golf;
-    var fresh = golf ? E.golfFresh(S.golf) : E.x01Fresh(S.x01), st = golf ? S.golf.starter : S.x01.starter;
-    [0, 1].forEach(function (i) { var b = $('st' + i); b.textContent = S.names[i]; press(b, st === i); b.disabled = !fresh; });
-    // Once a game is under way the set-up controls go, and the play area is drawn larger (see .playing in the CSS).
-    $('tabs').hidden = $('stLab').hidden = $('starter').hidden = !fresh;
-    document.body.classList.toggle('playing', !fresh);
-    var r = $('reset');
-    r.textContent = armed === 'reset' ? 'Tap again to wipe scores' : (golf ? 'New round' : 'New match');
-    r.className = 'btn' + (armed === 'reset' ? ' armed' : '');
-    if (golf) renderG(); else renderX();
-    renderHist(golf);
+    var game = S.screen === 'game' && !!S.match;
+    if ($('game').hidden === game) { $('lobby').hidden = game; $('game').hidden = !game; }
+    if (game) renderGame(); else renderLobby();
   }
 
   /* ---------- sheets ---------- */
   function link(href, text) { return '<a href="' + esc(href) + '" target="_blank" rel="noopener">' + text + '</a>'; }
-  function legalLinks() {
-    return (C.privacyUrl ? link(C.privacyUrl, 'Privacy policy') : '') + (C.termsUrl ? link(C.termsUrl, 'Terms of use') : '');
-  }
+  function legalLinks() { return (C.privacyUrl ? link(C.privacyUrl, 'Privacy policy') : '') + (C.termsUrl ? link(C.termsUrl, 'Terms of use') : ''); }
   function note(id, text, kind) { var n = $(id); n.textContent = text || ''; n.className = 'note' + (kind ? ' ' + kind : ''); }
+  function openSheet(id) { $(id).hidden = false; }
+  function closeSheet(id) { $(id).hidden = true; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); armed = ''; render(); }
+
+  function seg(id, items, cur) { $(id).innerHTML = items.map(function (it) { return '<button type="button" data-v="' + it[0] + '" aria-pressed="' + (it[0] === cur) + '">' + esc(it[1]) + '</button>'; }).join(''); }
+  function renderSetup() {
+    var g = E.game(su.id), M = S.match, h = '';
+    $('suIcon').innerHTML = icon(g.id); $('suName').textContent = g.id === 'x01' ? S.set.x01.start : g.name; $('suBlurb').textContent = g.blurb;
+    $('suHow').innerHTML = g.how.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('');
+    if (g.id === 'x01') h = '<h3>Options</h3><div class="seg" id="suStartSeg"></div><div class="field"><label for="suDbl">Double to finish<small>The last dart must be a double or the bull</small></label><input type="checkbox" class="tog" id="suDbl"' + (S.set.x01.dblOut ? ' checked' : '') + '></div>';
+    if (g.id === 'golf') h = '<h3>Options</h3><div class="seg" id="suHolesSeg"></div>';
+    $('suOpts').innerHTML = h; $('suOpts').hidden = !h;
+    if (g.id === 'x01') seg('suStartSeg', [[301, '301'], [501, '501'], [701, '701']], S.set.x01.start);
+    if (g.id === 'golf') seg('suHolesSeg', [[9, '9 holes'], [18, '18 holes']], S.set.golf.holes);
+    seg('suFirst', S.players.map(function (nm, i) { return [i, nm]; }), su.first);
+    note('suNote', M && !M.s.done && !E.fresh(M.s) ? 'Starting this ends the ' + E.view(M.s).title + ' game in progress.' : '');
+  }
+  function pickGame(id) {
+    var g = E.game(id), n = S.players.length;
+    if (locked(g)) { showPaywall(id); return; }
+    if (n < g.min) { toast(g.name + ' needs at least ' + g.min + ' players. Add one above.'); return; }
+    su = { id: id, first: 0 }; renderSetup(); openSheet('setupSheet');
+  }
+  function openPlayer(i) {
+    plIndex = i; var isNew = i >= S.players.length;
+    $('plTitle').textContent = isNew ? 'New player' : 'Player ' + (i + 1);
+    $('plName').value = isNew || /^Player \d$/.test(S.players[i]) ? '' : S.players[i];
+    $('plRemove').hidden = isNew || S.players.length <= 1;
+    if (isNew) { S.players.push('Player ' + (i + 1)); save(); }
+    openSheet('playerSheet');
+    setTimeout(function () { try { $('plName').focus(); } catch (e) {} }, 60);
+  }
+  function renderRules() {
+    var M = S.match, g = E.game(M.game);
+    $('ruIcon').innerHTML = icon(g.id); $('ruName').textContent = E.view(M.s).title; $('ruBlurb').textContent = g.blurb;
+    $('ruHow').innerHTML = g.how.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('');
+    var b = $('ruEnd'); b.textContent = armed === 'quit' ? 'Tap again to end the game' : 'End this game'; b.className = 'btn danger' + (armed === 'quit' ? ' armed' : '');
+  }
   function renderSettings() {
-    var xFresh = E.x01Fresh(S.x01), gFresh = E.golfFresh(S.golf), on = Pro.state.active;
-    $('gsX').textContent = String(S.x01.start); press($('gsX'), !isGolf()); press($('gsG'), isGolf());
-    press($('start301'), S.set.start === 301); press($('start501'), S.set.start === 501);
-    $('startNote').textContent = S.set.start !== S.x01.start && !xFresh ? 'Applies from the next leg' : '';
-    $('dblOut').checked = S.set.dblOut;
-    $('h18').checked = S.set.holes === 18;
-    $('holesNote').textContent = S.set.holes !== S.golf.holes && !gFresh ? 'Applies from the next round' : 'Off plays nine';
-    $('roast').checked = S.set.roast;
-    $('subState').textContent = on ? 'Pro is active. Golf is unlocked.' : '301 and 501 are free. Golf needs Pro.';
-    $('setSub').textContent = on ? 'Manage purchase' : 'See Pro';
+    var on = Pro.state.active;
+    $('roast').checked = S.set.roast; $('haptic').checked = S.set.haptic;
+    $('subState').textContent = on ? 'Pro is active. Every game is unlocked.' : '301, 501 and Count-Up are free. Pro unlocks the other ten games.';
+    $('setSub').textContent = on && Pro.native ? 'Manage purchase' : 'See Pro';
     $('setRestore').disabled = Pro.state.busy;
     var c = $('clearHist'); c.textContent = armed === 'clear' ? 'Tap again' : 'Clear'; c.className = 'btn' + (armed === 'clear' ? ' armed' : '');
     $('setLinks').innerHTML = legalLinks() + (C.supportEmail ? '<span>Support: ' + esc(C.supportEmail) + '</span>' : '');
     $('about').textContent = C.appName + ' ' + C.version;
   }
+  function plans() { return Pro.state.packages.length ? Pro.state.packages : (Pro.native ? [] : Pro.demo); }
   function renderPay() {
-    var plans = Pro.state.packages, off = Pro.state.busy ? ' disabled' : '';
-    $('plans').innerHTML = plans.length ? plans.map(function (p) {
-      return '<button type="button" class="plan" data-id="' + esc(p.id) + '"' + off + '><span>' + esc(p.label) + '</span><b>' + esc(p.price) + '</b><small>' + esc(p.term) + '</small></button>';
-    }).join('') : (Pro.native ? '<button type="button" class="btn primary" data-retry' + off + '>Load prices again</button>'
-      : '<button type="button" class="btn primary" disabled>Available in the iOS app</button>');
-    if (!plans.length && Pro.native) note('payNote', 'The store could not be reached. Check your connection and try again.', 'err');
+    var list = plans(), demo = !Pro.state.packages.length && !Pro.native, g = want && E.game(want);
+    $('payArt').innerHTML = boardArt(['#4A8DFF', '#FFC53D', '#F5F7FF', '#0E1D48']);
+    $('payTitle').textContent = g ? 'Unlock ' + g.name : 'Every game. Every night.';
+    $('payGames').innerHTML = E.GAMES.filter(function (x) { return x.pro; }).map(function (x) {
+      return '<div class="pg' + (x.id === want ? ' want' : '') + '"><span class="gicon">' + icon(x.id) + '</span>' + esc(x.name) + '</div>';
+    }).join('');
+    if (!plan || !list.some(function (p) { return p.id === plan; })) {
+      var yr = list.filter(function (p) { return p.type === 'ANNUAL'; })[0]; plan = (yr || list[0] || {}).id || null;
+    }
+    var mo = list.filter(function (p) { return p.type === 'MONTHLY'; })[0];
+    $('plans').innerHTML = list.map(function (p) {
+      var tag = '', sub = p.type === 'LIFETIME' ? 'Pay once, keep it for good' : (p.type === 'ANNUAL' ? 'Billed once a year' : 'Billed monthly');
+      if (p.type === 'ANNUAL') {
+        var save = mo && mo.amount && p.amount ? Math.round((1 - p.amount / (mo.amount * 12)) * 100) : 0;
+        tag = '<i class="pill gold">' + (save > 0 ? 'Save ' + save + '%' : 'Best value') + '</i>';
+      }
+      return '<button type="button" class="plan" role="radio" aria-checked="' + (p.id === plan) + '" data-id="' + esc(p.id) + '"><span>' + esc(p.label) + '<small>' + sub + '</small></span><b>' + esc(p.price) + '<small>' + esc(p.term) + '</small></b>' + tag + '</button>';
+    }).join('');
+    var b = $('payBuy');
+    b.disabled = Pro.state.busy || demo || (Pro.native && !list.length && false);
+    b.textContent = Pro.state.busy ? 'Working…' : (!list.length ? 'Load prices again' : 'Continue');
+    if (demo) note('payNote', 'Example prices. Purchases are made in the iOS app.');
+    else if (!list.length) note('payNote', 'The store could not be reached. Check your connection and try again.', 'err');
     $('payRestore').disabled = Pro.state.busy;
     $('payLinks').innerHTML = legalLinks();
   }
-  function openSheet(id) {
-    if (id === 'setSheet') { $('name0').value = S.names[0] === 'Player 1' ? '' : S.names[0]; $('name1').value = S.names[1] === 'Player 2' ? '' : S.names[1]; note('setNote', ''); renderSettings(); }
-    if (id === 'paySheet') { note('payNote', ''); renderPay(); }
-    $(id).hidden = false;
+  function unlocked() {
+    $('paySheet').hidden = true; render();
+    flash('Pro unlocked', 'good', 3, 'Every game is yours');
+    if (want) { var id = want; want = null; pickGame(id); }
   }
-  function closeSheet(id) { $(id).hidden = true; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); render(); }
-  function arm(what) {
-    armed = what; clearTimeout(armTimer);
-    armTimer = setTimeout(function () { armed = ''; render(); renderSettings(); }, 3000);
+  /** The app's own paywall, or RevenueCat's hosted one when config asks for it and it can be shown. */
+  function showPaywall(gameId) {
+    want = gameId || null;
+    Pro.paywall().then(function (r) {
+      if (r === 'purchased') unlocked();
+      else if (r === 'fallback') { note('payNote', ''); renderPay(); openSheet('paySheet'); }
+    });
   }
   function doRestore(noteId) {
     note(noteId, 'Checking…');
     Pro.restore().then(function (r) {
       if (r === 'restored') note(noteId, 'Pro restored.', 'ok');
       else if (r === 'none') note(noteId, 'No purchase found for this Apple Account.');
-      else note(noteId, 'Purchases are only available in the iOS app.');
+      else note(noteId, 'Purchases are made in the iOS app.');
     }, function (e) { note(noteId, e.message, 'err'); });
   }
 
-  function pickGame(g) {
-    if (g === 'golf' && !Pro.state.active) { showPaywall(); return; }
-    S.game = g; armed = ''; edit = null; save(); render();
-  }
-  function unlocked() {
-    $('paySheet').hidden = true; S.game = 'golf'; save(); render();
-    flash('Pro unlocked', 'good', 3, 'Golf is ready');
-  }
-  /** RevenueCat's paywall first; the app's own sheet if that cannot be shown (offline, or in a browser). */
-  function showPaywall() {
-    Pro.paywall().then(function (r) {
-      if (r === 'purchased') unlocked();
-      else if (r === 'fallback') openSheet('paySheet');
-    });
-  }
-
   /* ---------- wiring ---------- */
+  function on(id, type, fn) { $(id).addEventListener(type, fn); }
   function wire() {
-    var h = '', i;
-    for (i = 1; i <= 20; i++) h += '<button type="button" data-n="' + i + '">' + i + '</button>';
-    $('nums').innerHTML = h;
-
-    $('tabs').addEventListener('click', function (e) {
-      var b = e.target.closest('button'); if (b) pickGame(b.dataset.g);
+    /* lobby */
+    on('resume', 'click', function (e) {
+      var a = e.target.dataset.a;
+      if (a === 'resume') { var g = E.game(S.match.game); if (locked(g)) showPaywall(g.id); else go('game'); }
+      if (a === 'end') { if (armed !== 'end') arm('end', render); else endGame(); }
     });
-    $('gameSw').addEventListener('click', function (e) {
+    on('players', 'click', function (e) {
       var b = e.target.closest('button'); if (!b) return;
-      if (b.dataset.g === 'golf' && !Pro.state.active) $('setSheet').hidden = true;
-      pickGame(b.dataset.g); renderSettings();
+      openPlayer(b.dataset.p === 'add' ? S.players.length : +b.dataset.p);
     });
-    $('mods').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; var m = +b.dataset.m; mod = (mod === m ? 1 : m); render(); });
-    $('nums').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) throwDart(+b.dataset.n, mod); });
-    $('k25').addEventListener('click', function () { throwDart(25, 1); });
-    $('kbull').addEventListener('click', function () { throwDart(25, 2); });
-    $('kmiss').addEventListener('click', function () { throwDart(0, 1); });
-    $('kundo').addEventListener('click', undoX);
-    $('win').addEventListener('click', function (e) { var a = e.target.dataset.a; if (a === 'next') nextLeg(); if (a === 'undo') undoX(); });
+    on('games', 'click', function (e) { var b = e.target.closest('button'); if (b) { tap(); pickGame(b.dataset.g); } });
+    on('openSet', 'click', function () { note('setNote', ''); renderSettings(); openSheet('setSheet'); });
 
-    $('gkeys').addEventListener('click', function (e) {
-      var b = e.target.closest('button'); if (!b) return;
-      if (b.id === 'gundo') gUndo(); else if (b.id === 'gkeep') gKeep(); else gScore(+b.dataset.s);
+    /* player sheet */
+    on('plName', 'input', function (e) { S.players[plIndex] = e.target.value.trim().slice(0, 14) || 'Player ' + (plIndex + 1); save(); });
+    on('plName', 'keydown', function (e) { if (e.key === 'Enter') closeSheet('playerSheet'); });
+    on('plRemove', 'click', function () { S.players.splice(plIndex, 1); save(); closeSheet('playerSheet'); });
+
+    /* set-up sheet */
+    on('setupSheet', 'click', function (e) {
+      var b = e.target.closest('button[data-v]'); if (!b) return;
+      var box = b.parentNode.id, v = +b.dataset.v;
+      if (box === 'suStartSeg') S.set.x01.start = v;
+      if (box === 'suHolesSeg') S.set.golf.holes = v;
+      if (box === 'suFirst') su.first = v;
+      save(); renderSetup();
     });
-    $('gcard').addEventListener('click', function (e) {
-      var c = e.target.closest('td[data-k]'); if (!c) return;
+    on('setupSheet', 'change', function (e) { if (e.target.id === 'suDbl') { S.set.x01.dblOut = e.target.checked; save(); } });
+    on('suStart', 'click', function () { $('setupSheet').hidden = true; tap('MEDIUM'); startGame(su.id, su.first); });
+
+    /* game */
+    on('toLobby', 'click', function () { go('lobby'); });
+    on('openRules', 'click', function () { armed = ''; renderRules(); openSheet('rulesSheet'); });
+    on('ruEnd', 'click', function () { if (armed !== 'quit') arm('quit', renderRules); else { $('rulesSheet').hidden = true; endGame(); } });
+    on('pad', 'click', function (e) {
+      var b = e.target.closest('button'); if (!b || b.disabled) return;
+      var d = b.dataset;
+      if (d.a === 'undo') undo();
+      else if (d.a === 'keep') keepDart();
+      else if (d.m) { mod = (mod === +d.m ? 1 : +d.m); tap(); render(); }
+      else if (d.n) input({ n: +d.n, m: mod });
+      else if (d.x) input(d.x === 'miss' ? { n: 0, m: 1 } : { n: 25, m: d.x === 'bull' ? 2 : 1 });
+      else if (d.b) {
+        var dart = padBtns[+d.b].d, M = S.match;
+        if (edit) {
+          M.undo.push(JSON.stringify(M.s));
+          if (!E.golfEdit(M.s, edit.p, edit.k, dart.g)) M.undo.pop();
+          edit = null; tap(); save(); render();
+        } else input(dart);
+      }
+    });
+    on('board', 'click', function (e) {
+      var c = e.target.closest('td[data-k]'); if (!c || hold) return;
       var p = +c.dataset.p, k = +c.dataset.k;
       edit = (edit && edit.p === p && edit.k === k) ? null : { p: p, k: k }; render();
     });
-    $('gwin').addEventListener('click', function (e) {
+    on('result', 'click', function (e) {
       var a = e.target.dataset.a;
-      if (a === 'undo') gUndo();
-      if (a === 'new') { newRound(); save(); render(); }
-    });
-
-    $('starter').addEventListener('click', function (e) {
-      var b = e.target.closest('button'); if (!b) return; var n = +b.dataset.p;
-      if (isGolf()) { if (!E.golfFresh(S.golf)) return; S.golf.starter = S.golf.first = S.golf.active = n; }
-      else { if (!E.x01Fresh(S.x01)) return; S.x01.starter = S.x01.active = n; }
-      save(); render();
-    });
-    $('reset').addEventListener('click', function () {
-      if (armed !== 'reset') { arm('reset'); render(); return; }
-      armed = '';
-      if (isGolf()) newRound();
-      else { fxClear(); S.x01 = E.newX01({ start: S.set.start, dblOut: S.set.dblOut, starter: S.x01.starter, id: Date.now() }); S.ux = []; }
-      save(); render();
+      if (a === 'again') again(); else if (a === 'lobby') go('lobby'); else if (a === 'undo') undo();
     });
 
     /* settings */
-    $('openSet').addEventListener('click', function () { openSheet('setSheet'); });
-    [0, 1].forEach(function (i) {
-      $('name' + i).addEventListener('input', function (e) { S.names[i] = e.target.value.trim().slice(0, 14) || 'Player ' + (i + 1); save(); });
-    });
-    $('startSw').addEventListener('click', function (e) {
-      var b = e.target.closest('button'); if (!b) return;
-      S.set.start = +b.dataset.v;
-      if (E.x01Fresh(S.x01)) { var x = S.x01; S.x01 = E.newX01({ start: S.set.start, dblOut: S.set.dblOut, starter: x.starter, legs: x.legs, leg: x.leg, id: x.id }); }
-      save(); renderSettings();
-    });
-    $('dblOut').addEventListener('change', function (e) { S.set.dblOut = S.x01.dblOut = e.target.checked; save(); });
-    $('h18').addEventListener('change', function (e) {
-      S.set.holes = e.target.checked ? 18 : 9;
-      if (E.golfFresh(S.golf)) S.golf.holes = S.set.holes;
-      save(); renderSettings();
-    });
-    $('roast').addEventListener('change', function (e) { S.set.roast = e.target.checked; save(); });
-    $('setSub').addEventListener('click', function () {
-      if (Pro.state.active) { Pro.manage().then(function (shown) { if (!shown) window.open(C.manageUrl, '_blank'); }); return; }
+    on('roast', 'change', function (e) { S.set.roast = e.target.checked; save(); });
+    on('haptic', 'change', function (e) { S.set.haptic = e.target.checked; save(); tap('MEDIUM'); });
+    on('setSub', 'click', function () {
+      if (Pro.state.active && Pro.native) { Pro.manage().then(function (shown) { if (!shown) window.open(C.manageUrl, '_blank'); }); return; }
       $('setSheet').hidden = true; showPaywall();
     });
-    $('setRestore').addEventListener('click', function () { doRestore('setNote'); });
-    $('clearHist').addEventListener('click', function () {
-      if (armed !== 'clear') { arm('clear'); renderSettings(); return; }
-      armed = ''; S.hist = [];
-      if (S.x01.winner >= 0) S.x01.noHist = true;
-      if (S.golf.done) S.golf.noHist = true;
+    on('setRestore', 'click', function () { doRestore('setNote'); });
+    on('clearHist', 'click', function () {
+      if (armed !== 'clear') { arm('clear', renderSettings); return; }
+      armed = ''; S.hist = []; if (S.match && S.match.s.done) S.match.noHist = true;
       save(); renderSettings();
     });
 
     /* paywall */
-    $('plans').addEventListener('click', function (e) {
-      var b = e.target.closest('button'); if (!b || b.disabled) return;
+    on('plans', 'click', function (e) { var b = e.target.closest('button'); if (!b) return; plan = b.dataset.id; tap(); renderPay(); });
+    on('payBuy', 'click', function () {
       note('payNote', '');
-      if (b.hasAttribute('data-retry')) { Pro.init(); return; }
-      Pro.purchase(b.dataset.id).then(function (r) {
+      if (!plans().length) { Pro.init().then(renderPay); return; }
+      Pro.purchase(plan).then(function (r) {
         if (r === 'purchased') unlocked();
         else if (r === 'unavailable') { note('payNote', 'The store could not be reached. Check your connection and try again.', 'err'); Pro.init(); }
       }, function (e) { note('payNote', e.message, 'err'); });
     });
-    $('payRestore').addEventListener('click', function () { doRestore('payNote'); });
+    on('payRestore', 'click', function () { doRestore('payNote'); });
 
-    document.querySelectorAll('.sheet').forEach(function (sh) {
+    Array.prototype.forEach.call(document.querySelectorAll('.sheet'), function (sh) {
       sh.addEventListener('click', function (e) { if (e.target === sh || e.target.closest('[data-close]')) closeSheet(sh.id); });
     });
 
     Pro.onChange(function () {
       if (!S) return;
       render();
-      if (!$('paySheet').hidden) { if (Pro.state.active) $('paySheet').hidden = true; else renderPay(); }
+      if (!$('paySheet').hidden) { if (Pro.state.active && Pro.native) unlocked(); else renderPay(); }
       if (!$('setSheet').hidden) renderSettings();
     });
   }
@@ -502,8 +625,9 @@
     var first = !saved;
     S = adopt(saved);
     var ready = Pro.init(); // reads the cached entitlement synchronously, then confirms with the store
+    if (S.screen === 'game' && (!S.match || locked(E.game(S.match.game)))) S.screen = 'lobby';
     render();
-    if (first) openSheet('setSheet');
+    if (first) openPlayer(0);
     return ready;
   }).then(function () { render(); });
 })();
