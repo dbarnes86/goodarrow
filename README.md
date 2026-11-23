@@ -1,6 +1,6 @@
 # Good Arrows
 
-A darts scorer for iPhone. 301 and 501 are free. Darts golf is the paid game, on a monthly subscription.
+A darts scorer for iPhone. 301 and 501 are free. Darts golf is the paid game, sold as a monthly or yearly subscription or a one-off lifetime purchase.
 
 The bundle ID is `com.ludis.goodarrows` and the website is goodarrow.app. Items marked TODO in `www/config.js` are still to be filled in.
 
@@ -13,7 +13,7 @@ The app is plain HTML, CSS and JavaScript in `www/`, wrapped in a native iOS she
 | `www/engine.js` | The rules: X01 scoring, busts, checkout suggestions, golf scoring and honours. No DOM, so it runs in Node for tests. |
 | `www/app.js` | The screen: state, controls, rendering, banners and confetti. |
 | `www/store.js` | Saving. Native preferences on device, `localStorage` in a browser. |
-| `www/pro.js` | The subscription, through RevenueCat. |
+| `www/pro.js` | Purchases through RevenueCat: entitlement, paywall, customer centre, restore. |
 | `www/config.js` | App name, RevenueCat key, legal links. |
 | `ios/` | The Xcode project Capacitor generated. iPhone only, portrait, iOS 15 and up. |
 | `docs/` | The goodarrow.app website: a landing page and the privacy policy, served by GitHub Pages from this folder. |
@@ -32,6 +32,7 @@ Open the address it prints. Add `?pro=1` to the address to unlock golf, since a 
 ```
 npm test          # the rules, in Node
 npm run test:ui   # a full run-through in a real browser at phone size (needs Playwright)
+npm run test:pro  # the purchase flow against a stand-in for RevenueCat (needs Playwright)
 ```
 
 `test:ui` plays a 301 leg, hits the paywall, plays an 18-hole golf round, edits a hole and checks the scores survive a reload.
@@ -60,12 +61,17 @@ These need an Apple Developer account and a Mac with Xcode. None of them have be
 2. In App Store Connect, accept the Paid Apps agreement and add banking and tax details. Subscriptions cannot go on sale until this is approved.
 3. Enrol in the App Store Small Business Program to pay 15% commission instead of 30%.
 4. Register the bundle ID and create the app record.
-5. Create an auto-renewable subscription: one group, one monthly product at $0.99. Add its display name, description and a review screenshot of the paywall.
+5. Create the three products: auto-renewable subscriptions `monthly` and `yearly` in one subscription group, and a non-consumable `lifetime`. Add display names, descriptions and a review screenshot of the paywall.
 
 **RevenueCat**
-1. Create a project and add the iOS app with the bundle ID and an App Store Connect API key.
-2. Add the monthly product, attach it to an entitlement called `pro`, and put it in the default offering as the monthly package.
-3. Copy the public iOS SDK key (it starts `appl_`) into `revenueCatKey` in `www/config.js`.
+
+The SDK is already in the app through the `@revenuecat/purchases-capacitor` and `@revenuecat/purchases-capacitor-ui` plugins, which pull in the native iOS SDK by Swift Package Manager when you run `npm run sync`. Nothing needs adding in Xcode.
+
+1. Entitlement: `good_arrow_pro`. This is what unlocks Golf, and it is set in `www/config.js`.
+2. Products: `monthly`, `yearly` and `lifetime`. Attach all three to `good_arrow_pro` and put them in the default offering as the Monthly, Annual and Lifetime packages.
+3. Paywall: design it in RevenueCat under Paywalls and attach it to the default offering. The app shows that paywall when someone taps Golf. If it cannot be shown, the app falls back to its own sheet listing the same packages.
+4. Customer Center: switch it on in RevenueCat. "Manage purchase" in Settings opens it.
+5. API key: `www/config.js` currently holds a Test Store key (`test_...`), which lets you make pretend purchases with no App Store setup. Before submitting, create the products in App Store Connect, connect the app in RevenueCat, and replace the key with the App Store one (`appl_...`). Apple rejects a build that ships a test key.
 
 **The app**
 1. Register the bundle ID `com.ludis.goodarrows` in the Apple Developer portal. If you want a different one, change `appId` in `capacitor.config.json` and `PRODUCT_BUNDLE_IDENTIFIER` in Xcode before creating the app record.
@@ -77,4 +83,4 @@ These need an Apple Developer account and a Mac with Xcode. None of them have be
 **What has not been verified**
 - The iOS project has never been built. It was generated on Linux, where Xcode is not available.
 - Nothing has run on a real iPhone, so safe areas, haptics and native saving are untested on device.
-- The purchase flow has never run. The RevenueCat calls match the plugin's type definitions, but no real or sandbox purchase has been made.
+- No purchase has been made against RevenueCat or the App Store. `test:pro` proves the app reacts correctly to each result, using a stand-in for the plugins, and the calls match the plugins' type definitions.

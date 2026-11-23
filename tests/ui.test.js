@@ -89,8 +89,8 @@ function serve() {
     await check('golf opens the paywall when not subscribed', async () => {
       await page.click('#openSet'); await page.click('#gsG'); // mid-game the selector lives in Settings
       await page.waitForSelector('#paySheet:not([hidden])');
-      assert.match(await text('#paySheet'), /\$0\.99/);
-      assert.ok(await page.locator('#payBuy').isDisabled(), 'no store in a browser');
+      assert.match(await text('#paySheet'), /Available in the iOS app/);
+      assert.ok(await page.locator('#plans button').isDisabled(), 'no store in a browser');
       await shot('3-paywall');
       await page.click('#paySheet [data-close]');
       assert.ok(await page.locator('#vg').isHidden());

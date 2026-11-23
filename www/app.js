@@ -339,17 +339,19 @@
     $('holesNote').textContent = S.set.holes !== S.golf.holes && !gFresh ? 'Applies from the next round' : 'Off plays nine';
     $('roast').checked = S.set.roast;
     $('subState').textContent = on ? 'Pro is active. Golf is unlocked.' : '301 and 501 are free. Golf needs Pro.';
-    $('setSub').textContent = on ? 'Manage subscription' : 'See Pro';
+    $('setSub').textContent = on ? 'Manage purchase' : 'See Pro';
     $('setRestore').disabled = Pro.state.busy;
     var c = $('clearHist'); c.textContent = armed === 'clear' ? 'Tap again' : 'Clear'; c.className = 'btn' + (armed === 'clear' ? ' armed' : '');
     $('setLinks').innerHTML = legalLinks() + (C.supportEmail ? '<span>Support: ' + esc(C.supportEmail) + '</span>' : '');
     $('about').textContent = C.appName + ' ' + C.version;
   }
   function renderPay() {
-    $('payPrice').textContent = Pro.state.price || C.fallbackPrice;
-    var b = $('payBuy');
-    b.disabled = Pro.state.busy || !Pro.native;
-    b.textContent = Pro.state.busy ? 'Working…' : (Pro.native ? 'Subscribe' : 'Available in the iOS app');
+    var plans = Pro.state.packages, off = Pro.state.busy ? ' disabled' : '';
+    $('plans').innerHTML = plans.length ? plans.map(function (p) {
+      return '<button type="button" class="plan" data-id="' + esc(p.id) + '"' + off + '><span>' + esc(p.label) + '</span><b>' + esc(p.price) + '</b><small>' + esc(p.term) + '</small></button>';
+    }).join('') : (Pro.native ? '<button type="button" class="btn primary" data-retry' + off + '>Load prices again</button>'
+      : '<button type="button" class="btn primary" disabled>Available in the iOS app</button>');
+    if (!plans.length && Pro.native) note('payNote', 'The store could not be reached. Check your connection and try again.', 'err');
     $('payRestore').disabled = Pro.state.busy;
     $('payLinks').innerHTML = legalLinks();
   }
@@ -367,14 +369,25 @@
     note(noteId, 'Checking…');
     Pro.restore().then(function (r) {
       if (r === 'restored') note(noteId, 'Pro restored.', 'ok');
-      else if (r === 'none') note(noteId, 'No subscription found for this Apple Account.');
+      else if (r === 'none') note(noteId, 'No purchase found for this Apple Account.');
       else note(noteId, 'Purchases are only available in the iOS app.');
     }, function (e) { note(noteId, e.message, 'err'); });
   }
 
   function pickGame(g) {
-    if (g === 'golf' && !Pro.state.active) { openSheet('paySheet'); return; }
+    if (g === 'golf' && !Pro.state.active) { showPaywall(); return; }
     S.game = g; armed = ''; edit = null; save(); render();
+  }
+  function unlocked() {
+    $('paySheet').hidden = true; S.game = 'golf'; save(); render();
+    flash('Pro unlocked', 'good', 3, 'Golf is ready');
+  }
+  /** RevenueCat's paywall first; the app's own sheet if that cannot be shown (offline, or in a browser). */
+  function showPaywall() {
+    Pro.paywall().then(function (r) {
+      if (r === 'purchased') unlocked();
+      else if (r === 'fallback') openSheet('paySheet');
+    });
   }
 
   /* ---------- wiring ---------- */
@@ -447,8 +460,8 @@
     });
     $('roast').addEventListener('change', function (e) { S.set.roast = e.target.checked; save(); });
     $('setSub').addEventListener('click', function () {
-      if (Pro.state.active) { window.open(C.manageUrl, '_blank'); return; }
-      $('setSheet').hidden = true; openSheet('paySheet');
+      if (Pro.state.active) { Pro.manage().then(function (shown) { if (!shown) window.open(C.manageUrl, '_blank'); }); return; }
+      $('setSheet').hidden = true; showPaywall();
     });
     $('setRestore').addEventListener('click', function () { doRestore('setNote'); });
     $('clearHist').addEventListener('click', function () {
@@ -460,10 +473,12 @@
     });
 
     /* paywall */
-    $('payBuy').addEventListener('click', function () {
+    $('plans').addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b || b.disabled) return;
       note('payNote', '');
-      Pro.purchase().then(function (r) {
-        if (r === 'purchased') { $('paySheet').hidden = true; S.game = 'golf'; save(); render(); flash('Pro unlocked', 'good', 3, 'Golf is ready'); }
+      if (b.hasAttribute('data-retry')) { Pro.init(); return; }
+      Pro.purchase(b.dataset.id).then(function (r) {
+        if (r === 'purchased') unlocked();
         else if (r === 'unavailable') { note('payNote', 'The store could not be reached. Check your connection and try again.', 'err'); Pro.init(); }
       }, function (e) { note('payNote', e.message, 'err'); });
     });

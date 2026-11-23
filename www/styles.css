@@ -241,3 +241,11 @@ a{color:var(--green)}
 .playing .gkeys button.sc b{font-size:44px}
 .playing .gkeys button.sc small{font-size:12px}
 .playing .gkeys .keep,.playing .gkeys .undo{height:60px;font-size:16px}
+
+/* fallback paywall plans */
+.plans{display:flex;flex-direction:column;gap:10px}
+.plan{display:grid;grid-template-columns:1fr auto;align-items:baseline;column-gap:12px;text-align:left;min-height:64px;padding:10px 16px;border-radius:10px;border:2px solid var(--green);background:var(--key)}
+.plan span{font-weight:700;font-size:17px}
+.plan b{font-family:var(--display);font-weight:800;font-size:30px;line-height:1;grid-row:span 2;align-self:center}
+.plan small{color:var(--muted);font-size:13px}
+.plan:active{background:var(--soft)}
