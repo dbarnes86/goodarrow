@@ -9,8 +9,8 @@ window.APP_CONFIG = {
   fallbackPrice: '$0.99',                // shown only until the real price loads from the store
 
   // Links shown on the paywall and in Settings. Apple requires both on the paywall.
-  privacyUrl: 'https://goodarrow.app/privacy', // served from site/privacy/index.html once the site is deployed
+  privacyUrl: 'https://goodarrow.app/privacy', // served from docs/privacy/index.html by GitHub Pages
   termsUrl: 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/', // Apple's standard EULA
   manageUrl: 'https://apps.apple.com/account/subscriptions',
-  supportEmail: ''                       // TODO: support contact shown in Settings
+  supportEmail: 'hello@lud.is'
 };

@@ -16,7 +16,7 @@ The app is plain HTML, CSS and JavaScript in `www/`, wrapped in a native iOS she
 | `www/pro.js` | The subscription, through RevenueCat. |
 | `www/config.js` | App name, RevenueCat key, legal links. |
 | `ios/` | The Xcode project Capacitor generated. iPhone only, portrait, iOS 15 and up. |
-| `site/` | The goodarrow.app website: a landing page and the draft privacy policy. Not deployed yet. |
+| `docs/` | The goodarrow.app website: a landing page and the privacy policy, served by GitHub Pages from this folder. |
 
 ## Run it in a browser
 
@@ -69,7 +69,7 @@ These need an Apple Developer account and a Mac with Xcode. None of them have be
 
 **The app**
 1. Register the bundle ID `com.ludis.goodarrows` in the Apple Developer portal. If you want a different one, change `appId` in `capacitor.config.json` and `PRODUCT_BUNDLE_IDENTIFIER` in Xcode before creating the app record.
-2. Fill in the bracketed items in `site/privacy/index.html`, deploy `site/` to goodarrow.app so the policy is live at https://goodarrow.app/privacy, and add `supportEmail` in `www/config.js`.
+2. Turn on GitHub Pages for this repo (Settings, Pages, deploy from branch `main`, folder `/docs`) and point goodarrow.app at it, so the policy is live at https://goodarrow.app/privacy.
 3. On the Mac: `npm install`, `npm run sync`, `npm run open`. In Xcode set the signing team, then run on a real iPhone.
 4. Test a purchase, a restore and a cancellation with a sandbox Apple Account.
 5. Archive and upload from Xcode. In App Store Connect add screenshots, the description, the privacy answers (purchase history, used for app functionality, not linked to identity and not used for tracking), the privacy policy URL and the terms link, then submit the app and the subscription together.
