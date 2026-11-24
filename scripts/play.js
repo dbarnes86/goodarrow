@@ -108,7 +108,7 @@ async function upload(aab, track) {
     const b = await call('POST', UPLOAD + '/edits/' + id + '/bundles?uploadType=media', { file: aab });
     log('Uploaded versionCode ' + b.versionCode + '.');
     const release = (status) => call('PUT', API + '/edits/' + id + '/tracks/' + track, { json: {
-      track, releases: [{ versionCodes: [String(b.versionCode)], status, releaseNotes: [{ language: lang, text: notes }] }]
+      track, releases: [{ name: b.versionCode + ' (' + (process.env.VERSION_NAME || '') + ')', versionCodes: [String(b.versionCode)], status, releaseNotes: [{ language: lang, text: notes }] }]
     } });
     await release('completed');
     try {
