@@ -1,0 +1,47 @@
+# Releases a build that is already in Google Play to another track, run by hand from the Actions tab.
+# Typical use: a build tested on internal testing goes to production. Production releases go to Google's
+# review (as Send for review does in Play Console) and then roll out to everyone in full.
+#
+# Secret: PLAY_SERVICE_ACCOUNT_JSON, the Google Cloud service account key as JSON.
+name: Play promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_code:
+        description: versionCode to release (as shown in Play Console, for example 4)
+        type: string
+        required: true
+      track:
+        description: Track to release it to
+        type: choice
+        options: [production, beta, alpha]
+        default: production
+      dry_run:
+        description: Dry run (check, save nothing)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+      VERSION_CODE: ${{ inputs.version_code }}
+      TRACK: ${{ inputs.track }}
+      DRY: ${{ inputs.dry_run && '--dry-run' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Promote
+        run: node scripts/play.js promote "$VERSION_CODE" "$TRACK" $DRY

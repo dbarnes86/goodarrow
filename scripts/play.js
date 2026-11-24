@@ -3,6 +3,7 @@
 
      node scripts/play.js version-code               prints the next free versionCode for the app
      node scripts/play.js upload <file.aab> <track>  uploads a bundle and releases it to a track (internal, alpha, beta)
+     node scripts/play.js promote <versionCode> <track>  releases an already-uploaded build to a track, production included
      node scripts/play.js products [--dry-run]       creates the subscriptions and one-time products in play.json
      node scripts/play.js listing [--dry-run]        updates the store listing text, contact details and graphics
 
@@ -129,6 +130,25 @@ async function upload(aab, track) {
   }, { commit: false });   // committed above
 }
 
+/* ---------- promote ---------- */
+// Puts a build that is already in Play (for example on internal testing) on another track, in full.
+// For production this goes to Google's review, the same as pressing Send for review in Play Console.
+async function promote(code, track) {
+  if (!/^\d+$/.test(code || '')) throw new Error('Give the versionCode to promote, for example 4.');
+  if (!['alpha', 'beta', 'production'].includes(track)) throw new Error('Track must be alpha, beta or production.');
+  const notes = text('release_notes.txt', 500), lang = await defaultLanguage();
+  const name = /version:\s*'([^']+)'/.exec(fs.readFileSync(path.join(ROOT, 'www', 'config.js'), 'utf8'));
+  await edit(async (id) => {
+    const b = await call('GET', API + '/edits/' + id + '/bundles');
+    if (!(b.bundles || []).some((x) => String(x.versionCode) === code)) throw new Error('Play has no bundle with versionCode ' + code + '.');
+    await call('PUT', API + '/edits/' + id + '/tracks/' + track, { json: {
+      track, releases: [{ name: code + (name ? ' (' + name[1] + ')' : ''), versionCodes: [code], status: 'completed', releaseNotes: [{ language: lang, text: notes }] }]
+    } });
+    log((DRY ? 'Dry run: would release' : 'Releasing') + ' versionCode ' + code + ' to ' + track + ', with notes "' + notes + '".');
+  });
+  if (!DRY) log('Done. ' + (track === 'production' ? 'It goes to Google for review, then rolls out to everyone.' : 'Testers get it shortly.'));
+}
+
 /* ---------- products ---------- */
 async function products() {
   const lang = await defaultLanguage();
@@ -204,6 +224,6 @@ async function listing() {
 }
 
 const [cmd, ...args] = process.argv.slice(2).filter((a) => a !== '--dry-run');
-const run = { 'version-code': versionCode, upload: () => upload(args[0], args[1]), products, listing }[cmd];
-if (!run) { log('Usage: node scripts/play.js version-code | upload <file.aab> <track> | products [--dry-run] | listing [--dry-run]'); process.exit(2); }
+const run = { 'version-code': versionCode, upload: () => upload(args[0], args[1]), promote: () => promote(args[0], args[1]), products, listing }[cmd];
+if (!run) { log('Usage: node scripts/play.js version-code | upload <file.aab> <track> | promote <versionCode> <track> | products [--dry-run] | listing [--dry-run]'); process.exit(2); }
 run().catch((e) => { log(e.message); process.exit(1); });
