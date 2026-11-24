@@ -27,11 +27,13 @@ const svg = (size, mark) => `<svg xmlns="http://www.w3.org/2000/svg" width="${si
   const root = path.join(__dirname, '..');
   const out = [
     { size: 1024, mark: 1024, file: 'ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png' },
+    { size: 512, mark: 512, file: 'resources/store/play/icon-512.png' },   // Google Play store icon
     { size: 2732, mark: 760, file: 'ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png' },
     { size: 2732, mark: 760, file: 'ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-1.png' },
     { size: 2732, mark: 760, file: 'ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-2.png' },
   ];
   fs.writeFileSync(path.join(root, 'resources/icon.svg'), svg(1024, 1024));
+  fs.mkdirSync(path.join(root, 'resources/store/play'), { recursive: true });
   // Android: legacy and round launcher icons, the adaptive-icon foreground (board inside the 66% safe zone),
   // and every splash.png Capacitor generated, redrawn at its own size.
   const dens = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };

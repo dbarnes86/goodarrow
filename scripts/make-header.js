@@ -1,12 +1,15 @@
 /* Renders the App Store product page header in the two sizes App Store Connect supports.
    A floodlit board in the dark, in the app's colours. No text: Apple lays the app's name and the
    Get button over the header, and crops it differently by device, so the board sits right of centre
-   and the lower left is kept dark. Run: npm run header (needs Playwright). Output: resources/store/header/ */
+   and the lower left is kept dark. Run: npm run header (needs Playwright). Output: resources/store/header/
+   It also renders the Google Play feature graphic (1024 x 500) to resources/store/play/. Play lays nothing over
+   that one, so it carries the app's name on the dark left side. */
 const fs = require('fs'), path = require('path');
 const { chromium } = require('playwright');
 const FONTS = path.join(__dirname, '..', 'www', 'fonts');
 const OUT = path.join(__dirname, '..', 'resources', 'store', 'header');
-const SIZES = [[5244, 2950], [3840, 1646]];
+const PLAY_OUT = path.join(__dirname, '..', 'resources', 'store', 'play');
+const SIZES = [[5244, 2950], [3840, 1646], [1024, 500, 'play']];
 const FONT = fs.readFileSync(path.join(FONTS, 'big-shoulders-display-latin-800-normal.woff2')).toString('base64');   // inline: a blank page can't fetch a font from another origin
 const NUMS = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
 
@@ -51,9 +54,9 @@ function darts() {
 }
 
 (async () => {
-  fs.mkdirSync(OUT, { recursive: true });
+  fs.mkdirSync(OUT, { recursive: true }); fs.mkdirSync(PLAY_OUT, { recursive: true });
   const browser = await chromium.launch();
-  for (const [W, H] of SIZES) {
+  for (const [W, H, play] of SIZES) {
     const w = W / 2, h = H / 2, wide = w / h > 2;
     const size = h * (wide ? 0.9 : 0.86);                         // board diameter
     const cx = w * (wide ? 0.72 : 0.66), cy = h * 0.5;
@@ -73,13 +76,15 @@ function darts() {
       .board svg{width:${size}px;height:${size}px;display:block}
       .darts{position:absolute;left:${cx - size / 2}px;top:${cy - size / 2}px;width:${size}px;height:${size}px}
       .conf i{position:absolute;border-radius:2px}
+      .name{position:absolute;left:${w * 0.065}px;top:50%;transform:translateY(-50%);font-family:BS;font-weight:800;text-transform:uppercase;color:#F5F7FF;font-size:${h * 0.24}px;line-height:.9;letter-spacing:.01em}
+      .name small{display:block;margin-top:${h * 0.05}px;font-size:${h * 0.095}px;letter-spacing:.06em;color:#8FB3FF}
       .shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(5,8,15,.85) 0%,rgba(5,8,15,.35) 34%,rgba(5,8,15,0) 52%),linear-gradient(0deg,rgba(5,8,15,.7) 0%,rgba(5,8,15,0) 30%)}
     </style></head><body><div class="bg"></div><div class="beam"></div><div class="conf">${confetti}</div><div class="glow"></div>
-      <div class="board">${board()}</div><svg class="darts" viewBox="0 0 1000 1000">${darts()}</svg><div class="shade"></div></body></html>`);
+      <div class="board">${board()}</div><svg class="darts" viewBox="0 0 1000 1000">${darts()}</svg><div class="shade"></div>${play ? '<div class="name">Good<br>Arrows<small>Twelve darts games</small></div>' : ''}</body></html>`);
     await page.evaluate(() => document.fonts.load('800 46px BS').then(() => document.fonts.ready));   // the numbers are SVG text, so load the face before the shot
-    await page.screenshot({ path: path.join(OUT, `header-${W}x${H}.png`) });
+    await page.screenshot({ path: play ? path.join(PLAY_OUT, `feature-${W}x${H}.png`) : path.join(OUT, `header-${W}x${H}.png`) });
     await page.close();
   }
   await browser.close();
-  console.log('header written to resources/store/header');
+  console.log('header written to resources/store/header, feature graphic to resources/store/play');
 })().catch((e) => { console.error(e); process.exit(1); });

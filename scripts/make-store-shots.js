@@ -1,12 +1,15 @@
 /* Renders the App Store screenshots from the real app: six game states, each framed under a headline,
    in every iPhone size App Store Connect asks for. Run: npm run store-shots (needs Playwright).
-   Output: resources/store/screenshots/<width>x<height>/ */
+   Output: resources/store/screenshots/<width>x<height>/
+   With --play it renders the Google Play phone size instead (1080 x 2160; Play rejects anything taller than 2:1),
+   to resources/store/play/screenshots/1080x2160/ */
 const http = require('http'), fs = require('fs'), path = require('path');
 const { chromium } = require('playwright');
 const ROOT = path.join(__dirname, '..', 'www');
-const OUT = path.join(__dirname, '..', 'resources', 'store', 'screenshots');
+const PLAY = process.argv.includes('--play');
+const OUT = path.join(__dirname, '..', 'resources', 'store', ...(PLAY ? ['play', 'screenshots'] : ['screenshots']));
 // Pixel sizes Apple accepts, as points at 3x: large display (6.9-inch) and medium display (6.3-inch, two variants).
-const SIZES = [[440, 956], [402, 874], [393, 852]];
+const SIZES = PLAY ? [[360, 720]] : [[440, 956], [402, 874], [393, 852]];
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.png': 'image/png' };
 const raw = {};   // name -> PNG buffer of the bare app screen
 
@@ -135,5 +138,5 @@ const SHOTS = [
   await frame.context().close();
   }
   await browser.close(); srv.close();
-  console.log('wrote ' + SHOTS.length + ' screenshots in ' + SIZES.length + ' sizes to resources/store/screenshots');
+  console.log('wrote ' + SHOTS.length + ' screenshots in ' + SIZES.length + ' sizes to ' + path.relative(path.join(__dirname, '..'), OUT));
 })().catch((e) => { console.error(e); process.exit(1); });
