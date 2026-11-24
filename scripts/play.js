@@ -107,6 +107,11 @@ async function upload(aab, track) {
     log('Uploading ' + path.basename(aab) + '…');
     const b = await call('POST', UPLOAD + '/edits/' + id + '/bundles?uploadType=media', { file: aab });
     log('Uploaded versionCode ' + b.versionCode + '.');
+    const mapping = path.join(path.dirname(aab), '..', '..', 'mapping', 'release', 'mapping.txt');
+    if (fs.existsSync(mapping)) {   // R8's mapping file, so Play can show readable crash reports
+      await call('POST', UPLOAD + '/edits/' + id + '/apks/' + b.versionCode + '/deobfuscationFiles/proguard?uploadType=media', { file: mapping });
+      log('Uploaded the deobfuscation (mapping) file.');
+    }
     const release = (status) => call('PUT', API + '/edits/' + id + '/tracks/' + track, { json: {
       track, releases: [{ name: b.versionCode + ' (' + (process.env.VERSION_NAME || '') + ')', versionCodes: [String(b.versionCode)], status, releaseNotes: [{ language: lang, text: notes }] }]
     } });

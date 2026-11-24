@@ -1,7 +1,7 @@
 /* App configuration. Everything marked TODO must be filled in before submitting to the App Store. */
 window.APP_CONFIG = {
   appName: 'Good Arrows',
-  version: '1.0.0',
+  version: '1.0.1',
 
   // RevenueCat. SDK keys are public by design and safe to ship in the app.
   // RevenueCat's public App Store SDK key. For pretend purchases with no App Store set-up, swap in the
