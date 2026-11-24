@@ -7,9 +7,8 @@ window.APP_CONFIG = {
   // RevenueCat's public App Store SDK key. For pretend purchases with no App Store set-up, swap in the
   // project's Test Store key (starts "test_") while developing, but never ship a build with it.
   revenueCatKey: 'appl_OgpUkUiOlvUMYMYDTLXixHuNtyd',
-  // TODO before releasing on Google Play: the RevenueCat public key for the Play Store app (starts "goog_").
-  // Until it is set the Android build runs with every free game and shows the Pro games as unavailable.
-  revenueCatKeyAndroid: '',
+  // RevenueCat's public Google Play SDK key, for the Android build.
+  revenueCatKeyAndroid: 'goog_FtlWxbAOMCVejgSTPVtlfCzKnBl',
   entitlement: 'good_arrow_pro',         // RevenueCat entitlement identifier that unlocks the Pro games
   nativePaywall: false,                  // true shows the paywall designed in the RevenueCat dashboard instead of the app's own
 
