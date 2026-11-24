@@ -1,0 +1,89 @@
+# Builds, signs and uploads the Android app to a Google Play testing track.
+# Runs on a version tag (git tag v1.0.1 && git push origin v1.0.1), or by hand from the Actions tab.
+# The tag must match the version in www/config.js. versionCode is set automatically to one above Play's highest.
+# Production stays a manual step: promote the release in Play Console once it has been tested.
+#
+# Secrets (Settings, Secrets and variables, Actions):
+#   PLAY_SERVICE_ACCOUNT_JSON  the Google Cloud service account key, as JSON
+#   ANDROID_KEYSTORE_BASE64    the upload keystore: base64 -i upload.jks | pbcopy
+#   ANDROID_KEYSTORE_PASSWORD  the keystore password
+#   ANDROID_KEY_PASSWORD       the key password
+#   ANDROID_KEY_ALIAS          optional, defaults to "upload"
+name: Android release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      track:
+        description: Play track
+        type: choice
+        options: [alpha, internal, beta]
+        default: alpha
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+      TRACK: ${{ inputs.track || 'alpha' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Android SDK packages
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null && "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+
+      - name: Version
+        run: |
+          NAME=$(node -e "global.window={};require('./www/config.js');console.log(window.APP_CONFIG.version)")
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "${GITHUB_REF_NAME#v}" != "$NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match version $NAME in www/config.js"; exit 1
+          fi
+          CODE=$(node scripts/play.js version-code)
+          echo "versionName $NAME, versionCode $CODE"
+          echo "VERSION_NAME=$NAME" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$CODE" >> "$GITHUB_ENV"
+
+      - name: Upload keystore
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || 'upload' }}
+        run: |
+          if [ -z "$KEYSTORE" ]; then echo "::error::ANDROID_KEYSTORE_BASE64 is not set"; exit 1; fi
+          echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            "$RUNNER_TEMP/upload.jks" "$STORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > android/keystore.properties
+
+      - name: Build
+        run: |
+          npm ci
+          npm run sync
+          cd android && ./gradlew bundleRelease --no-daemon -PversionCode="$VERSION_CODE" -PversionName="$VERSION_NAME"
+
+      - name: Upload to Play
+        run: node scripts/play.js upload android/app/build/outputs/bundle/release/app-release.aab "$TRACK"
+
+      - name: Remove keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.jks" android/keystore.properties

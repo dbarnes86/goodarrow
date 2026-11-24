@@ -73,6 +73,8 @@ The signed bundle for Play Console is `android/app/build/outputs/bundle/release/
 
 Building needs the Android SDK: install Android Studio, or set `ANDROID_HOME` to an SDK with platform 36 and build-tools 36.
 
+**Releasing from GitHub.** `.github/workflows/android-release.yml` builds, signs and uploads to Play's closed testing track on a version tag (`v1.0.1`, matching `www/config.js`). `.github/workflows/play-store-setup.yml` creates the products and uploads the store listing. Both use `scripts/play.js` and the secrets listed in `resources/store/play-listing.md`, section 8.
+
 ## Xcode Cloud
 
 `ios/App/ci_scripts/ci_post_clone.sh` runs on Apple's servers right after each clone. It installs Node if needed, then runs `npm ci` and `npm run sync`, so the build has the web app and the Capacitor and RevenueCat packages. Nothing else in the repo needs changing.

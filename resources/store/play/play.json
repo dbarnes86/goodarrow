@@ -1,0 +1,32 @@
+{
+  "packageName": "com.ludis.goodarrow",
+  "contactEmail": "hello@lud.is",
+  "contactWebsite": "https://goodarrow.app",
+  "subscriptions": [
+    {
+      "productId": "monthly",
+      "basePlanId": "monthly",
+      "billingPeriod": "P1M",
+      "usdPrice": "0.99",
+      "title": "Good Arrows Pro (Monthly)",
+      "benefits": ["All ten Pro games", "Golf, Cricket, Killer and Shanghai", "Plus Halve-It, Bob's 27 and more", "Up to six players per game"]
+    },
+    {
+      "productId": "yearly",
+      "basePlanId": "yearly",
+      "billingPeriod": "P1Y",
+      "usdPrice": "7.99",
+      "title": "Good Arrows Pro (Yearly)",
+      "benefits": ["All ten Pro games", "Golf, Cricket, Killer and Shanghai", "Plus Halve-It, Bob's 27 and more", "Up to six players per game"]
+    }
+  ],
+  "oneTimeProducts": [
+    {
+      "productId": "lifetime",
+      "purchaseOptionId": "lifetime",
+      "usdPrice": "19.99",
+      "title": "Good Arrows Pro (Lifetime)",
+      "description": "All ten Pro games, for good. Golf, Cricket, Killer, Shanghai, Halve-It, Bob's 27, Baseball, Knockout, Gotcha and Around the Clock. One payment."
+    }
+  ]
+}

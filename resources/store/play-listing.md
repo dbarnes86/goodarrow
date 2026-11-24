@@ -33,53 +33,14 @@ Play Console, All apps, Create app.
 
 ## 3. Main store listing
 
-**App name (30):** `Good Arrows: Darts Games`
+The text lives in `resources/store/play/listing/`, one file per field, and the **Play Store setup** workflow uploads it (section 8). To paste it by hand instead:
 
-**Short description (80):**
-
-```
-Darts scorer for 301, 501, Cricket, Killer, Golf and more. One to six players.
-```
-
-**Full description (4000):**
-
-```
-Good Arrows is the darts scorer for a night at the board. Tap what you hit and it does the maths: busts called, checkouts suggested, turns passed and every result kept.
-
-TWELVE GAMES
-• 301, 501 and 701, with optional double-out
-• Count-Up
-• Golf, over 9 or 18 holes, scored against par
-• Cricket
-• Killer
-• Around the Clock
-• Shanghai
-• Halve-It
-• Bob's 27
-• Baseball
-• Knockout
-• Gotcha
-
-UP TO SIX PLAYERS
-Add everyone at the board. Good Arrows keeps the throwing order, lives, honours and who's armed, so nobody has to.
-
-BUILT FOR THE OCHE
-• Big keys you can hit with one thumb, dart still in hand
-• Checkout routes for every finish from 170 down
-• Undo for the dart you tapped wrong
-• A colour-coded golf scorecard, editable after the fact
-• Celebrations for the big moments, and a roast for the bad ones
-• A running record of who actually wins
-
-Every game explains its own rules before you start, so a new player can pick it up between throws.
-
-FREE AND PRO
-301, 501, 701 and Count-Up are free, with no ads. Good Arrows Pro unlocks the other ten games, monthly, yearly or once for life.
-
-Monthly and yearly plans renew automatically until cancelled. Cancel any time in Google Play, under Payments and subscriptions.
-
-No account, no ads, no tracking. Privacy policy: https://goodarrow.app/privacy
-```
+| Field | File |
+|---|---|
+| App name (30) | `title.txt`: `Good Arrows: Darts Games`, to match the App Store. Play Console currently says "Dart games". |
+| Short description (80) | `short_description.txt` |
+| Full description (4000) | `full_description.txt` |
+| Release notes (500) | `release_notes.txt`, used by the release workflow |
 
 **Graphics** (all in `resources/store/play/`):
 
@@ -141,6 +102,8 @@ The ID is the random installation ID RevenueCat uses in place of an account. Pla
 
 ## 5. Products (Monetise, Products)
 
+The **Play Store setup** workflow creates all three from `resources/store/play/play.json` (section 8). The tables below are the same values, for checking or for doing it by hand.
+
 These need a build with the billing permission uploaded to any track first, and the payments profile set up. Prices are the ones the app uses in its demo; match whatever is live on the App Store.
 
 **Subscriptions.** Make two, to mirror the App Store product IDs. Product IDs are permanent and can't be reused.
@@ -178,9 +141,28 @@ Let Play convert prices to other countries, then round any that look odd.
 ## 7. Releasing
 
 1. **Upload key.** Create it yourself with `keytool` and keep two backups off this repo. Turn on Play App Signing when Play asks (the default).
-2. **Signing config.** Add a release signing config to `android/app/build.gradle` that reads the keystore path and passwords from a gitignored `android/keystore.properties`.
-3. **Version.** Bump `versionCode` in `android/app/build.gradle` for every upload. Play rejects a repeat. Keep `versionName` in step with `www/config.js`.
+2. **Signing config.** Done: `android/app/build.gradle` reads the keystore from a gitignored `android/keystore.properties`. CI writes that file from secrets.
+3. **Version.** The release workflow sets `versionCode` to one above Play's highest and takes `versionName` from `www/config.js`. For a build by hand, pass `-PversionCode=N` to Gradle, as Play rejects a repeat.
 4. **Build:** `npm run build:android`. Upload `android/app/build/outputs/bundle/release/app-release.aab`.
 5. **Internal testing first.** Add your own Gmail under Settings, License testing, so test purchases go through without a real charge. Test buying, restoring and cancelling.
-6. **Closed testing**, if the developer account is a personal one created after November 2023: 12 or more testers opted in for 14 days in a row before Production unlocks. Organisation accounts skip this.
+6. **Closed testing.** Ludis Entertainment is an organisation account, so the 12-tester, 14-day rule doesn't apply. Use closed testing (Alpha) for your own checks, then promote.
 7. **Production.** Roll out with the release notes `First release.`
+
+## 8. Automation (GitHub Actions)
+
+Two workflows talk to the Google Play Developer API with a service account, so uploads and product setup don't need anyone in Play Console. The code is `scripts/play.js`, with no dependencies.
+
+**One-off setup**
+
+1. **Service account.** In Google Cloud (the same project as Breach's is fine), create a service account and a JSON key, and enable the Google Play Android Developer API. In Play Console, Users and permissions, invite its email and give it Good Arrows with: Release apps to testing tracks, Manage testing tracks and edit tester lists, Manage store presence, and View app information. Add View financial data and Manage orders and subscriptions too if RevenueCat will use the same account.
+2. **GitHub secrets** (repo Settings, Secrets and variables, Actions):
+   - `PLAY_SERVICE_ACCOUNT_JSON`: the whole JSON key file
+   - `ANDROID_KEYSTORE_BASE64`: `base64 -i ~/keys/goodarrow-upload.jks | pbcopy` on a Mac
+   - `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_PASSWORD`
+   - `ANDROID_KEY_ALIAS`: only if the alias isn't `upload`
+3. **First build by hand.** Play won't take an app's first bundle through the API. Build it locally (`npm run build:android`) and upload it to Closed testing (Alpha) in Play Console. After that the workflow does it.
+
+**Android release** (`.github/workflows/android-release.yml`): push a tag that matches the version in `www/config.js`, for example `git tag v1.0.1 && git push origin v1.0.1`, or run it from the Actions tab and choose a track. It builds, signs, sets the versionCode and uploads to Closed testing (Alpha) with the notes in `release_notes.txt`. Until the app's first release has been reviewed, Play only accepts drafts, so the workflow saves a draft and you press Roll out in Play Console. Production is always a manual promotion.
+
+**Play Store setup** (`.github/workflows/play-store-setup.yml`): run it from the Actions tab. Leave Dry run ticked the first time: it signs in, reads the app and prices everything without saving. Then run it again unticked. It creates the subscriptions and the lifetime product with Google's price conversion from the US price, activates them, and uploads the listing text and graphics. Products that already exist are skipped; change their prices in Play Console. It can't fill in the App content forms (section 4); those stay manual.
+

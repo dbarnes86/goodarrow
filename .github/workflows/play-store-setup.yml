@@ -1,0 +1,50 @@
+# Sets up Good Arrows in Google Play from the files in resources/store/play/, run by hand from the Actions tab.
+#   products: creates the monthly and yearly subscriptions and the lifetime product in play.json, priced from
+#             the US price with Google's own conversion, and activates them. Ones that already exist are skipped.
+#   listing:  updates the store listing text, contact details, icon, feature graphic and screenshots.
+# Start with a dry run: it signs in, reads the app and prices everything, but saves nothing.
+# Products need a build with the billing permission uploaded first (any track).
+#
+# Secret: PLAY_SERVICE_ACCOUNT_JSON, the Google Cloud service account key as JSON.
+name: Play Store setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      products:
+        description: Create subscriptions and the lifetime product
+        type: boolean
+        default: true
+      listing:
+        description: Update the store listing and graphics
+        type: boolean
+        default: true
+      dry_run:
+        description: Dry run (save nothing)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+      DRY: ${{ inputs.dry_run && '--dry-run' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Products
+        if: inputs.products
+        run: node scripts/play.js products $DRY
+
+      - name: Listing
+        if: inputs.listing
+        run: node scripts/play.js listing $DRY
