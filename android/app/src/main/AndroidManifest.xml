@@ -39,4 +39,7 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- The app is locked to portrait, which on its own makes Play treat a portrait screen as required
+         hardware and hide the app from some tablets, Chromebooks and XR devices. It runs fine on them. -->
+    <uses-feature android:name="android.hardware.screen.portrait" android:required="false" />
 </manifest>
