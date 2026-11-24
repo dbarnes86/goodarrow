@@ -59,6 +59,20 @@ npm run test:pro  # the purchase flow against a stand-in for RevenueCat (needs P
 
 `test:ui` covers first launch, the lobby and paywall, a 301 leg with a bust and a checkout, Count-Up, Golf with an edit, three-player Killer, Cricket, Around the Clock, and a reload mid-game.
 
+## Android
+
+The Android app is in `android/`, built from the same `www/` code. Package `com.ludis.goodarrow`.
+
+**Signing a release.** Copy `android/keystore.properties.example` to `android/keystore.properties` and fill in the path to your upload keystore, its alias and passwords. That file, and any `.jks` or `.keystore`, is gitignored. Then:
+
+```
+npm run build:android
+```
+
+The signed bundle for Play Console is `android/app/build/outputs/bundle/release/app-release.aab`. Without `keystore.properties` the release bundle is built unsigned and Play Console will refuse it. Each upload to Play needs a higher `versionCode` in `android/app/build.gradle`.
+
+Building needs the Android SDK: install Android Studio, or set `ANDROID_HOME` to an SDK with platform 36 and build-tools 36.
+
 ## Xcode Cloud
 
 `ios/App/ci_scripts/ci_post_clone.sh` runs on Apple's servers right after each clone. It installs Node if needed, then runs `npm ci` and `npm run sync`, so the build has the web app and the Capacitor and RevenueCat packages. Nothing else in the repo needs changing.
