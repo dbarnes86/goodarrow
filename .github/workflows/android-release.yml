@@ -2,6 +2,8 @@
 # Runs on a version tag (git tag v1.0.1 && git push origin v1.0.1), or by hand from the Actions tab.
 # The tag must match the version in www/config.js. versionCode is set automatically to one above Play's highest.
 # Production stays a manual step: promote the release in Play Console once it has been tested.
+# Run by hand with "Upload to Play" unticked to only build: the signed bundle is attached to the run as
+# app-release-aab, to download and drag into Play Console. The app's very first bundle has to go in that way.
 #
 # Secrets (Settings, Secrets and variables, Actions):
 #   PLAY_SERVICE_ACCOUNT_JSON  the Google Cloud service account key, as JSON
@@ -21,6 +23,10 @@ on:
         type: choice
         options: [alpha, internal, beta]
         default: alpha
+      upload:
+        description: Upload to Play (untick to only build and download the bundle)
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -36,6 +42,7 @@ jobs:
     env:
       PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
       TRACK: ${{ inputs.track || 'alpha' }}
+      UPLOAD: ${{ github.event_name == 'push' || inputs.upload }}
     steps:
       - uses: actions/checkout@v4
 
@@ -58,7 +65,8 @@ jobs:
           if [ "$GITHUB_REF_TYPE" = tag ] && [ "${GITHUB_REF_NAME#v}" != "$NAME" ]; then
             echo "::error::Tag $GITHUB_REF_NAME does not match version $NAME in www/config.js"; exit 1
           fi
-          CODE=$(node scripts/play.js version-code)
+          # Play has no builds yet before the first upload, so a build-only run falls back to 1.
+          if [ "$UPLOAD" = true ]; then CODE=$(node scripts/play.js version-code); else CODE=$(node scripts/play.js version-code || echo 1); fi
           echo "versionName $NAME, versionCode $CODE"
           echo "VERSION_NAME=$NAME" >> "$GITHUB_ENV"
           echo "VERSION_CODE=$CODE" >> "$GITHUB_ENV"
@@ -81,7 +89,15 @@ jobs:
           npm run sync
           cd android && ./gradlew bundleRelease --no-daemon -PversionCode="$VERSION_CODE" -PversionName="$VERSION_NAME"
 
+      - name: Attach the bundle to this run
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 7
+
       - name: Upload to Play
+        if: env.UPLOAD == 'true'
         run: node scripts/play.js upload android/app/build/outputs/bundle/release/app-release.aab "$TRACK"
 
       - name: Remove keystore
