@@ -160,7 +160,7 @@ Two workflows talk to the Google Play Developer API with a service account, so u
    - `ANDROID_KEYSTORE_BASE64`: `base64 -i ~/keys/goodarrow-upload.jks | pbcopy` on a Mac
    - `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_PASSWORD`
    - `ANDROID_KEY_ALIAS`: only if the alias isn't `upload`
-3. **First build by hand.** Play won't take an app's first bundle through the API. Build it locally (`npm run build:android`) and upload it to Closed testing (Alpha) in Play Console. After that the workflow does it.
+3. **First release.** The workflow uploaded the app's first bundle (versionCode 1) through the API on 24 November 2026. Play kept it as a draft until the app's first review, so it has to be rolled out in Play Console once.
 
 **Android release** (`.github/workflows/android-release.yml`): push a tag that matches the version in `www/config.js`, for example `git tag v1.0.1 && git push origin v1.0.1`, or run it from the Actions tab and choose a track. It builds, signs, sets the versionCode and uploads to Closed testing (Alpha) with the notes in `release_notes.txt`. Until the app's first release has been reviewed, Play only accepts drafts, so the workflow saves a draft and you press Roll out in Play Console. Production is always a manual promotion.
 

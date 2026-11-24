@@ -3,7 +3,7 @@
 # The tag must match the version in www/config.js. versionCode is set automatically to one above Play's highest.
 # Production stays a manual step: promote the release in Play Console once it has been tested.
 # Run by hand with "Upload to Play" unticked to only build: the signed bundle is attached to the run as
-# app-release-aab, to download and drag into Play Console. The app's very first bundle has to go in that way.
+# app-release-aab, to download and drag into Play Console by hand.
 #
 # Secrets (Settings, Secrets and variables, Actions):
 #   PLAY_SERVICE_ACCOUNT_JSON  the Google Cloud service account key, as JSON
