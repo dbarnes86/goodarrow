@@ -23,7 +23,7 @@ function serve() {
   }).listen(0, () => r(s)); });
 }
 /* Stands in for the native plugins: live-style prices, and Pro on or off. */
-function nativeStub(pro) {
+function nativeStub({ pro, platform }) {
   const pkg = (id, type, p) => ({ identifier: id, packageType: type, product: { title: id, priceString: '$' + p.toFixed(2), price: p } });
   const info = { customerInfo: { entitlements: { active: pro ? { good_arrow_pro: { isActive: true } } : {} } } };
   const plugins = {
@@ -33,7 +33,7 @@ function nativeStub(pro) {
       getOfferings: async () => ({ current: { availablePackages: [pkg('$rc_monthly', 'MONTHLY', 0.99), pkg('$rc_annual', 'ANNUAL', 7.99), pkg('$rc_lifetime', 'LIFETIME', 19.99)] } }) },
     RevenueCatUI: {}
   };
-  window.Capacitor = { isNativePlatform: () => true, registerPlugin: (n) => plugins[n] };
+  window.Capacitor = { isNativePlatform: () => true, getPlatform: () => platform, registerPlugin: (n) => plugins[n] };
   Math.random = (() => { let x = 7; return () => (x = (x * 16807) % 2147483647) / 2147483647; })();   // same Killer numbers every run
 }
 
@@ -56,7 +56,9 @@ const SHOTS = [
     const page = await ctx.newPage();
     page.on('pageerror', (e) => { throw e; });
     await page.route('**/vendor/capacitor.js', (r) => r.fulfill({ contentType: 'text/javascript', body: '' }));
-    await page.addInitScript(nativeStub, pro);
+    // There is no Play key yet, so hand the stand-in plugins a dummy one or the paywall shows no plans.
+    if (PLAY) await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(ROOT, 'config.js'), 'utf8').replace("revenueCatKeyAndroid: ''", "revenueCatKeyAndroid: 'goog_screenshot'") }));
+    await page.addInitScript(nativeStub, { pro, platform: PLAY ? 'android' : 'ios' });   // Android shows Google Play wording on the paywall
     await page.goto(base);
     await page.waitForSelector('#playerSheet:not([hidden])');
     await page.fill('#plName', 'Dan'); await page.click('#playerSheet [data-close]');

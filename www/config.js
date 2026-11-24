@@ -17,5 +17,8 @@ window.APP_CONFIG = {
   privacyUrl: 'https://goodarrow.app/privacy', // served from docs/privacy/index.html by GitHub Pages
   termsUrl: 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/', // Apple's standard EULA
   manageUrl: 'https://apps.apple.com/account/subscriptions',
+  // Android: Google Play has no standard EULA, so no terms link is shown there. Set one if goodarrow.app gets a terms page.
+  termsUrlAndroid: '',
+  manageUrlAndroid: 'https://play.google.com/store/account/subscriptions',
   supportEmail: 'hello@lud.is'
 };

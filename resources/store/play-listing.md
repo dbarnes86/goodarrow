@@ -4,17 +4,9 @@ Everything needed to set the app up in Play Console, in the order Play Console a
 
 Package name: `com.ludis.goodarrow`. It is permanent once the first build is uploaded.
 
-## 0. Fix before the first upload
+## 0. Android wording (done)
 
-The Android build still carries iPhone wording. Play's reviewers check that paywall terms match the store, so fix these before submitting:
-
-1. **Paywall small print** (`www/index.html`, the `.fine` paragraph) says "Payment is charged to your Apple Account… App Store account settings". On Android it should read Google Play.
-2. **Restore message** (`www/app.js`) says "No purchase found for this Apple Account."
-3. **Links** (`www/config.js`): `termsUrl` points to Apple's EULA and `manageUrl` to apps.apple.com. On Android, manage should go to `https://play.google.com/store/account/subscriptions`. Play has no standard EULA, so either host a short terms page on goodarrow.app or hide the terms link on Android.
-4. **Privacy policy** (`docs/privacy/index.html`) says purchases are handled by Apple. It needs to say "Apple or Google, depending on your device".
-5. **Website** (`docs/index.html`) says "coming to the App Store for iPhone".
-
-Re-render screenshot 6 after fixing item 1 (`node scripts/make-store-shots.js --play`).
+The Android build now shows Google Play wording: the paywall small print, the restore message and the Manage link (`manageUrlAndroid` in `www/config.js`). There's no terms link on Android, as Play has no standard EULA; set `termsUrlAndroid` if goodarrow.app gets a terms page. The privacy policy and website cover both stores. iOS is unchanged.
 
 ## 1. Create app
 
@@ -95,7 +87,7 @@ No account, no ads, no tracking. Privacy policy: https://goodarrow.app/privacy
 |---|---|---|
 | App icon | `icon-512.png` | 512 x 512 PNG, up to 1 MB. Play rounds the corners itself. |
 | Feature graphic | `feature-1024x500.png` | 1024 x 500, no alpha |
-| Phone screenshots | `screenshots/1080x2160/1-games.png` to `5-win.png` | 2 to 8, no taller than 2:1. Upload in order. Add `6-pro.png` once the paywall copy is fixed. |
+| Phone screenshots | `screenshots/1080x2160/1-games.png` to `6-pro.png` | 2 to 8, no taller than 2:1. Upload in order. |
 | Tablet screenshots | Skip | The app is phone-only and portrait |
 | Video | Skip | Optional |
 
@@ -103,7 +95,7 @@ Re-render the icon with `npm run assets`, the feature graphic with `npm run head
 
 ## 4. App content (Policy, App content)
 
-**Privacy policy:** `https://goodarrow.app/privacy`. Update the wording first (item 4 above).
+**Privacy policy:** `https://goodarrow.app/privacy`
 
 **App access:** All functionality is available without any access restrictions. The Pro games are behind a purchase, not a login, so no reviewer credentials are needed.
 

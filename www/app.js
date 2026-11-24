@@ -5,6 +5,10 @@
   var E = window.Engine, C = window.APP_CONFIG, Pro = window.Pro, Store = window.Store;
   var $ = function (id) { return document.getElementById(id); };
   var cap = window.Capacitor;
+  var ANDROID = !!(cap && cap.getPlatform && cap.getPlatform() === 'android');   // store wording and links differ by platform
+  var STORE = ANDROID ? { terms: C.termsUrlAndroid, manage: C.manageUrlAndroid, account: 'Google account',
+    fine: 'Monthly and yearly plans renew at the price shown until you cancel. Lifetime is a single payment. Payment is charged to your Google Play account. Cancel any time in Google Play, under Payments and subscriptions. 301, 501 and Count-Up stay free.' }
+    : { terms: C.termsUrl, manage: C.manageUrl, account: 'Apple Account', fine: null };   // iOS keeps the paywall text in index.html
   var haptics = cap && cap.isNativePlatform && cap.isNativePlatform() && cap.registerPlugin ? cap.registerPlugin('Haptics') : null;
   var reduced = window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches;
 
@@ -418,7 +422,7 @@
 
   /* ---------- sheets ---------- */
   function link(href, text) { return '<a href="' + esc(href) + '" target="_blank" rel="noopener">' + text + '</a>'; }
-  function legalLinks() { return (C.privacyUrl ? link(C.privacyUrl, 'Privacy policy') : '') + (C.termsUrl ? link(C.termsUrl, 'Terms of use') : ''); }
+  function legalLinks() { return (C.privacyUrl ? link(C.privacyUrl, 'Privacy policy') : '') + (STORE.terms ? link(STORE.terms, 'Terms of use') : ''); }
   function note(id, text, kind) { var n = $(id); n.textContent = text || ''; n.className = 'note' + (kind ? ' ' + kind : ''); }
   function openSheet(id) { $(id).hidden = false; }
   function closeSheet(id) { $(id).hidden = true; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); armed = ''; render(); }
@@ -512,7 +516,7 @@
     note(noteId, 'Checking…');
     Pro.restore().then(function (r) {
       if (r === 'restored') note(noteId, 'Pro restored.', 'ok');
-      else if (r === 'none') note(noteId, 'No purchase found for this Apple Account.');
+      else if (r === 'none') note(noteId, 'No purchase found for this ' + STORE.account + '.');
       else note(noteId, 'Purchases are made in the iOS app.');
     }, function (e) { note(noteId, e.message, 'err'); });
   }
@@ -585,7 +589,7 @@
     on('roast', 'change', function (e) { S.set.roast = e.target.checked; save(); });
     on('haptic', 'change', function (e) { S.set.haptic = e.target.checked; save(); tap('MEDIUM'); });
     on('setSub', 'click', function () {
-      if (Pro.state.active && Pro.native) { Pro.manage().then(function (shown) { if (!shown) window.open(C.manageUrl, '_blank'); }); return; }
+      if (Pro.state.active && Pro.native) { Pro.manage().then(function (shown) { if (!shown) window.open(STORE.manage, '_blank'); }); return; }
       $('setSheet').hidden = true; showPaywall();
     });
     on('setRestore', 'click', function () { doRestore('setNote'); });
@@ -620,6 +624,7 @@
   }
 
   /* ---------- boot ---------- */
+  if (STORE.fine) $('payFine').textContent = STORE.fine;
   wire();
   Store.load().then(function (saved) {
     var first = !saved;
