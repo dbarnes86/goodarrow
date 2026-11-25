@@ -1,42 +1,47 @@
-/* Records a 30-second vertical video ad (1080 x 1920) from the real app: a 301 leg with a 180, a checkout
+/* Records a 30-second video ad, vertical (1080 x 1920) and landscape (1920 x 1080), from the real app: a 301 leg with a 180, a checkout
    called and hit, then the games list, inside a phone frame with captions and a closing card. The app runs in
    an iframe with the same stand-in native plugins as the store screenshots, and the page is captured frame by
    frame with Chrome's screencast, then encoded with ffmpeg (H.264, silent AAC track, 30 fps).
-   Run: npm run video (needs Playwright and ffmpeg). Output: resources/store/video/good-arrows-30s-1080x1920.mp4 */
+   Run: npm run video (needs Playwright and ffmpeg). Output: resources/store/video/good-arrows-30s-<width>x<height>.mp4 */
 const http = require('http'), fs = require('fs'), path = require('path'), os = require('os');
 const { execFileSync } = require('child_process');
 const { chromium } = require('playwright');
 const ROOT = path.join(__dirname, '..'), WWW = path.join(ROOT, 'www');
 const OUT = path.join(ROOT, 'resources', 'store', 'video');
-const FILE = path.join(OUT, 'good-arrows-30s-1080x1920.mp4');
-const LENGTH = 30, W = 1080, H = 1920;
-const APP = { w: 390, h: 844 }, S = 1.6;                       // app viewport, and how much the phone scales it
-const PH = { x: (W - APP.w * S) / 2, y: 470 };                  // where the app's top-left sits in the ad
+const LENGTH = 30, APP = { w: 390, h: 844 };                    // seconds, and the app's viewport
+/* Per shape: the frame size, how much the phone scales the app (S), where the app's top-left sits (x, y),
+   and where the captions go. Vertical puts the captions above the phone; landscape puts them to its left. */
+const FORMATS = [
+  { W: 1080, H: 1920, S: 1.6, x: (1080 - APP.w * 1.6) / 2, y: 470, bg: '130% 70% at 50% 0%', h1: 112, p: 40, end: 1,
+    cap: 'left:60px;right:60px;top:90px;height:340px;align-items:center;text-align:center' },
+  { W: 1920, H: 1080, S: 1.1, x: 1250, y: 92, bg: '90% 140% at 72% 0%', h1: 150, p: 46, end: .82,
+    cap: 'left:140px;width:980px;top:0;bottom:0;align-items:flex-start;text-align:left' }
+];
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.png': 'image/png', '.svg': 'image/svg+xml' };
 
-const AD_PAGE = `<!doctype html><html><head><meta charset="utf-8"><style>
+const adPage = ({ W, H, S, x, y, bg, h1, p, end: e, cap }) => `<!doctype html><html><head><meta charset="utf-8"><style>
   @font-face{font-family:BS;font-weight:800;src:url(/fonts/big-shoulders-display-latin-800-normal.woff2)}
   @font-face{font-family:FT;font-weight:600;src:url(/fonts/figtree-latin-600-normal.woff2)}
   html,body{margin:0;width:${W}px;height:${H}px;overflow:hidden;background:#070B16}
-  body{position:relative;color:#F5F7FF;font-family:FT,sans-serif;background:radial-gradient(130% 70% at 50% 0%,#1D3F96 0%,#0B1530 52%,#070B16 100%)}
-  #cap{position:absolute;left:60px;right:60px;top:90px;height:340px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:18px;transition:opacity .35s,transform .35s}
+  body{position:relative;color:#F5F7FF;font-family:FT,sans-serif;background:radial-gradient(${bg},#1D3F96 0%,#0B1530 52%,#070B16 100%)}
+  #cap{position:absolute;${cap};display:flex;flex-direction:column;justify-content:center;gap:18px;transition:opacity .35s,transform .35s}
   #cap.out{opacity:0;transform:translateY(-24px)}
-  #cap h1{margin:0;font-family:BS;font-weight:800;font-size:112px;line-height:.92;text-transform:uppercase;letter-spacing:.01em}
-  #cap p{margin:0;font-size:40px;color:#C6D6FF}
-  #phone{position:absolute;left:${PH.x - 16}px;top:${PH.y - 16}px;width:${APP.w * S + 32}px;height:${APP.h * S + 32}px;border-radius:78px;background:#1A2340;
+  #cap h1{margin:0;font-family:BS;font-weight:800;font-size:${h1}px;line-height:.92;text-transform:uppercase;letter-spacing:.01em}
+  #cap p{margin:0;font-size:${p}px;color:#C6D6FF}
+  #phone{position:absolute;left:${x - 16}px;top:${y - 16}px;width:${APP.w * S + 32}px;height:${APP.h * S + 32}px;border-radius:${Math.round(49 * S)}px;background:#1A2340;
     box-shadow:0 0 0 2px #3A4A78,0 40px 120px rgba(0,0,0,.6),0 0 140px rgba(47,123,255,.3);transition:transform .9s cubic-bezier(.2,.8,.2,1),opacity .9s}
   #phone.low{transform:translateY(420px);opacity:0}
-  #screen{position:absolute;left:16px;top:16px;width:${APP.w * S}px;height:${APP.h * S}px;border-radius:64px;overflow:hidden}
+  #screen{position:absolute;left:16px;top:16px;width:${APP.w * S}px;height:${APP.h * S}px;border-radius:${Math.round(40 * S)}px;overflow:hidden}
   #screen iframe{border:0;width:${APP.w}px;height:${APP.h}px;transform:scale(${S});transform-origin:0 0;display:block}
   .tap{position:absolute;width:90px;height:90px;margin:-45px 0 0 -45px;border-radius:50%;background:rgba(255,255,255,.35);box-shadow:0 0 0 3px rgba(255,255,255,.7);pointer-events:none;animation:tap .45s ease-out forwards}
   @keyframes tap{from{transform:scale(.4);opacity:1}to{transform:scale(1.3);opacity:0}}
   #end{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;text-align:center;
     background:radial-gradient(120% 80% at 50% 30%,#1D3F96 0%,#0B1530 55%,#070B16 100%);opacity:0;transition:opacity .6s}
   #end.on{opacity:1}
-  #end img{width:300px;height:300px;border-radius:66px;box-shadow:0 0 120px rgba(47,123,255,.45)}
-  #end h1{margin:0;font-family:BS;font-weight:800;font-size:150px;line-height:.9;text-transform:uppercase}
-  #end p{margin:0;font-size:46px;color:#C6D6FF}
-  #end .get{margin-top:24px;padding:26px 56px;border-radius:999px;background:#2F7BFF;font-size:46px;color:#fff}
+  #end img{width:${300 * e}px;height:${300 * e}px;border-radius:${66 * e}px;box-shadow:0 0 120px rgba(47,123,255,.45)}
+  #end h1{margin:0;font-family:BS;font-weight:800;font-size:${150 * e}px;line-height:.9;text-transform:uppercase}
+  #end p{margin:0;font-size:${46 * e}px;color:#C6D6FF}
+  #end .get{margin-top:${24 * e}px;padding:${26 * e}px ${56 * e}px;border-radius:999px;background:#2F7BFF;font-size:${46 * e}px;color:#fff}
 </style></head><body>
   <div id="cap" class="out"><h1></h1><p></p></div>
   <div id="phone" class="low"><div id="screen"><iframe src="/index.html"></iframe></div></div>
@@ -50,10 +55,10 @@ const AD_PAGE = `<!doctype html><html><head><meta charset="utf-8"><style>
   </script>
 </body></html>`;
 
-function serve() {
+function serve(html) {
   return new Promise((r) => { const s = http.createServer((q, res) => {
     const url = decodeURIComponent(q.url.split('?')[0]);
-    if (url === '/__ad') { res.writeHead(200, { 'content-type': 'text/html' }); return res.end(AD_PAGE); }
+    if (url === '/__ad') { res.writeHead(200, { 'content-type': 'text/html' }); return res.end(html); }
     if (url === '/__icon.png') { res.writeHead(200, { 'content-type': 'image/png' }); return res.end(fs.readFileSync(path.join(ROOT, 'resources', 'store', 'play', 'icon-512.png'))); }
     if (url === '/vendor/capacitor.js') { res.writeHead(200, { 'content-type': 'text/javascript' }); return res.end(''); }
     const f = path.join(WWW, url.replace(/^\/$/, '/index.html'));
@@ -79,10 +84,10 @@ function nativeStub() {
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-(async () => {
-  fs.mkdirSync(OUT, { recursive: true });
+async function record(f) {
+  const { W, H, S } = f, PH = { x: f.x, y: f.y }, FILE = path.join(OUT, `good-arrows-30s-${W}x${H}.mp4`);
   const frames = fs.mkdtempSync(path.join(os.tmpdir(), 'ga-video-'));
-  const srv = await serve(), base = `http://localhost:${srv.address().port}`;
+  const srv = await serve(adPage(f)), base = `http://localhost:${srv.address().port}`;
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
   await ctx.addInitScript(nativeStub);
@@ -172,4 +177,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     '-c:a', 'aac', '-b:a', '128k', '-t', String(LENGTH), '-movflags', '+faststart', FILE]);
   fs.rmSync(frames, { recursive: true, force: true });
   console.log(`wrote ${path.relative(ROOT, FILE)} from ${stamps.length} frames`);
+}
+
+(async () => {
+  fs.mkdirSync(OUT, { recursive: true });
+  for (const f of FORMATS) await record(f);
 })().catch((e) => { console.error(e); process.exit(1); });
