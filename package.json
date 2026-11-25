@@ -16,7 +16,8 @@
     "header": "node scripts/make-header.js",
     "open:android": "cap open android",
     "build:android": "npm run sync && cd android && ./gradlew assembleDebug bundleRelease",
-    "ads": "node scripts/make-ad-images.js"
+    "ads": "node scripts/make-ad-images.js",
+    "video": "node scripts/make-video-ad.js"
   },
   "license": "UNLICENSED",
   "dependencies": {
