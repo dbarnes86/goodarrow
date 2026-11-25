@@ -166,3 +166,26 @@ Two workflows talk to the Google Play Developer API with a service account, so u
 
 **Play Store setup** (`.github/workflows/play-store-setup.yml`): run it from the Actions tab. Leave Dry run ticked the first time: it signs in, reads the app and prices everything without saving. Then run it again unticked. It creates the subscriptions and the lifetime product with Google's price conversion from the US price, activates them, and uploads the listing text and graphics. Products that already exist are skipped; change their prices in Play Console. It can't fill in the App content forms (section 4); those stay manual.
 
+
+## 9. Google Ads App campaign
+
+App promotion, App installs, Android, Good Arrows. Budget $20 a day, bidding for installs, no target cost per install for the first two weeks. Locations: United Kingdom and Ireland to start; add the US, Australia and the Netherlands once the cost per install and the trial-to-paid rate are known. Judge it after about three weeks.
+
+**Headlines (30):**
+- `Darts scorer for 1-6 players`
+- `301, 501, Cricket and Killer`
+- `Every checkout, called`
+- `Twelve darts games, one app`
+- `Stop the maths. Just throw.`
+
+**Descriptions (90):**
+- `Tap what you hit and Good Arrows does the maths: busts, checkouts and turn order.`
+- `Golf, Cricket, Killer, Shanghai and more, for up to six players at the board.`
+- `301, 501 and Count-Up are free with no ads. Pro unlocks ten more games.`
+- `Big keys you can hit with a dart in hand. Every result kept.`
+
+**Images:** all nine in `resources/store/ads/` (landscape 1200x628, square 1200x1200, portrait 1200x1500). Re-render with `npm run ads`.
+
+**Videos** (unlisted on YouTube; files in `resources/store/video/`, re-record with `npm run video`):
+- Landscape 1920x1080: https://youtu.be/deYN100fp1w
+- Vertical 1080x1920: https://youtube.com/shorts/BtIpv5w8faA
